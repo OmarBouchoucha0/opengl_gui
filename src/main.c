@@ -1,3 +1,4 @@
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
 
@@ -12,6 +13,13 @@ int main() {
     return -1;
   }
   glfwMakeContextCurrent(window);
+
+  if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+    printf("glad load failed");
+    glfwTerminate();
+    return -1;
+  }
+  printf("OpenGL Loaded: %s\n", glGetString(GL_VERSION));
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
