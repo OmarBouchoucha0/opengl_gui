@@ -16,6 +16,8 @@
 #define local_persist static
 #define internal static
 
+#define GPU_BUFFER_SIZE 4096
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -35,14 +37,100 @@ struct Color {
   u8 a;
 };
 
-internal void error_callback(int error, const char *description) {
+struct V2 {
+  i32 x;
+  i32 y;
+};
+
+struct V2f {
+  f32 x;
+  f32 y;
+};
+
+struct Rectangle {
+  f32 x;
+  f32 y;
+  f32 width;
+  f32 height;
+};
+
+typedef GLFWwindow Window;
+
+global_variable const char *vertexShaderSource =
+    "#version 330 core\n"
+    "layout (location = 0) in vec3 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "}\0";
+
+global_variable const char *fragmentShaderSource =
+    "#version 330 core\n"
+    "out vec4 FragColor;\n"
+    "void main()\n"
+    "{\n"
+    "   FragColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
+    "}\n\0";
+
+internal void errorCallback(int error, const char *description) {
   fprintf(stderr, "Error: %s\n", description);
 }
 
-internal void key_callback(GLFWwindow *window, int key, int scancode,
-                           int action, int mods) {
+internal void init() {
+  glfwSetErrorCallback(errorCallback);
+
+  if (!glfwInit())
+    exit(EXIT_FAILURE);
+
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+}
+
+internal void keyCallback(GLFWwindow *window, int key, int scancode, int action,
+                          int mods) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
+
+internal Window *createWindow(u32 windowWidth, u32 windowHeight,
+                              const char *title) {
+  Window *window = glfwCreateWindow(windowWidth, windowHeight,
+                                    "graphics library", NULL, NULL);
+  if (!window) {
+    glfwTerminate();
+    exit(EXIT_FAILURE);
+  }
+  glfwSetKeyCallback(window, keyCallback);
+  glfwMakeContextCurrent(window);
+
+  gladLoadGL();
+  glViewport(0, 0, windowWidth, windowHeight);
+  return window;
+}
+
+internal void destroyWindow(Window *window) {
+  glfwDestroyWindow(window);
+  glfwTerminate();
+}
+
+internal void loadShaders(u32 vertexShader, u32 fragmentShader,
+                          u32 *shaderProgram) {
+  vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+  glCompileShader(vertexShader);
+
+  fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+  glCompileShader(fragmentShader);
+
+  *shaderProgram = glCreateProgram();
+  glAttachShader(*shaderProgram, vertexShader);
+  glAttachShader(*shaderProgram, fragmentShader);
+  glLinkProgram(*shaderProgram);
+
+  glDeleteShader(vertexShader);
+  glDeleteShader(fragmentShader);
 }
 
 internal void clearBackground(Color color) {
@@ -51,46 +139,155 @@ internal void clearBackground(Color color) {
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
+internal void drawLine(V2f start, V2f end, u32 shaderProgram, u32 *VAO,
+                       u32 *VBO) {
+  float vertices[] = {start.x, start.y, 0.0, end.x, end.y, 0.0f};
+
+  glUseProgram(shaderProgram);
+  glBindVertexArray(*VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+  glLineWidth(1.0f);
+  glDrawArrays(GL_LINES, 0, 2);
+}
+
+internal void drawTrinagle(V2f v1, V2f v2, V2f v3, u32 shaderProgram, u32 *VAO,
+                           u32 *VBO) {
+  float vertices[] = {
+      v1.x, v1.y, 0.0f, v2.x, v2.y, 0.0f, v3.x, v3.y, 0.0f,
+  };
+
+  glUseProgram(shaderProgram);
+  glBindVertexArray(*VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+  glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
+internal void drawRectangle(Rectangle rect, u32 shaderProgram, u32 *VBO,
+                            u32 *VAO, u32 *EBO) {
+  float vertices[] = {
+      rect.x,
+      rect.y,
+      0.0f,
+      rect.x + rect.width,
+      rect.y,
+      0.0f,
+      rect.x + rect.width,
+      rect.y + rect.height,
+      0.0f,
+      rect.x,
+      rect.y + rect.height,
+      0.0f,
+  };
+
+  unsigned int indices[] = {
+      0, 1, 2, 0, 2, 3,
+  };
+
+  glUseProgram(shaderProgram);
+  glBindVertexArray(*VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *EBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+               GL_STATIC_DRAW);
+
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
 int main(void) {
-  glfwSetErrorCallback(error_callback);
 
-  if (!glfwInit())
-    exit(EXIT_FAILURE);
-
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
+  init();
   i32 windowWidth = 800;
   i32 windowHeight = 600;
-  GLFWwindow *window = glfwCreateWindow(windowWidth, windowHeight,
-                                        "graphics library", NULL, NULL);
-  if (!window) {
-    glfwTerminate();
-    exit(EXIT_FAILURE);
-  }
+  Window *window = createWindow(windowWidth, windowHeight, "open gl");
 
-  glfwSetKeyCallback(window, key_callback);
-  glfwMakeContextCurrent(window);
-  gladLoadGL();
-  glViewport(0, 0, windowWidth, windowHeight);
+  u32 vertexShader;
+  u32 fragmentShader;
+  u32 shaderProgram;
+  loadShaders(vertexShader, fragmentShader, &shaderProgram);
+
+  u32 VAO;
+  u32 VBO;
+  u32 EBO;
+  glGenVertexArrays(1, &VAO);
+  glGenBuffers(1, &VBO);
+  glGenBuffers(1, &EBO);
+
+  glBindVertexArray(VAO);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferData(GL_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
 
   Color backgroundColor = {
-      .r = 100,
-      .g = 100,
-      .b = 100,
-      .a = 255,
+      .r = 0x11,
+      .g = 0x11,
+      .b = 0x11,
+      .a = 0xff,
+  };
+  V2f startx = {
+      .x = 1.0f,
+      .y = 0.0f,
+  };
+
+  V2f endx = {
+      .x = -1.0f,
+      .y = 0.0f,
+  };
+
+  V2f starty = {
+      .x = 0.0f,
+      .y = 1.0f,
+  };
+
+  V2f endy = {
+      .x = 0.0f,
+      .y = -1.0f,
+  };
+
+  V2f v1 = {
+      .x = -0.5f,
+      .y = -0.5f,
+  };
+  V2f v2 = {
+      .x = 0.5f,
+      .y = -0.5f,
+  };
+  V2f v3 = {
+      .x = 0.5f,
+      .y = 0.5f,
+  };
+  Rectangle rect = {
+      .x = 0.0f,
+      .y = 0.0f,
+      .width = 1.0f,
+      .height = 1.0f,
   };
 
   while (!glfwWindowShouldClose(window)) {
 
     clearBackground(backgroundColor);
+
+    // drawLine(startx, endx, shaderProgram, &VBO, &VAO);
+    // drawLine(starty, endy, shaderProgram, &VBO, &VAO);
+    // drawTrinagle(v1, v2, v3, shaderProgram, &VAO, &VBO);
+    drawRectangle(rect, shaderProgram, &VAO, &VBO, &EBO);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
 
-  glfwDestroyWindow(window);
-
-  glfwTerminate();
+  destroyWindow(window);
   exit(EXIT_SUCCESS);
 }
