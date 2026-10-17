@@ -10,13 +10,6 @@ typedef struct {
   size_t size;
 } Arena;
 
-Arena arenaInit(uint8_t *buffer, size_t size);
-void arenaReset(Arena *arena);
-void arenaFree(Arena *arena);
-void *arenaAlloc(Arena *arena, size_t memSize);
-
-#ifdef ARENA_IMPLEMENTATION
-
 Arena arenaInit(uint8_t *buffer, size_t size) {
   Arena arena = {0};
   arena.buffer = buffer;
@@ -26,11 +19,6 @@ Arena arenaInit(uint8_t *buffer, size_t size) {
 }
 
 void arenaReset(Arena *arena) { arena->offset = 0; }
-
-void arenaFree(Arena *arena) {
-  Arena empty = {0};
-  *arena = empty;
-}
 
 void *arenaAlloc(Arena *arena, size_t memSize) {
   size_t new_offset = arena->offset + memSize;
@@ -42,5 +30,4 @@ void *arenaAlloc(Arena *arena, size_t memSize) {
   return mem_alloc_start;
 }
 
-#endif // ARENA_IMPLEMENTATION
 #endif // ARENA_H
