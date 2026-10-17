@@ -1,7 +1,10 @@
+#include <cmath>
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#define ARENA_IMPLEMENTATION
+#include "arena.h"
 
 #include "linmath.h"
 
@@ -17,6 +20,7 @@
 #define internal static
 
 #define GPU_BUFFER_SIZE 4096
+#define PI 3.14159265359f
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -52,6 +56,12 @@ struct Rectangle {
   f32 y;
   f32 width;
   f32 height;
+};
+
+struct GpuBuffers {
+  u32 VAO;
+  u32 VBO;
+  u32 EAO;
 };
 
 typedef GLFWwindow Window;
@@ -133,6 +143,23 @@ internal void loadShaders(u32 vertexShader, u32 fragmentShader,
   glDeleteShader(fragmentShader);
 }
 
+internal void initGpu(GpuBuffers *gpuBuffers) {
+  glGenVertexArrays(1, &gpuBuffers->VAO);
+  glGenBuffers(1, &gpuBuffers->VBO);
+  glGenBuffers(1, &gpuBuffers->EAO);
+
+  glBindVertexArray(gpuBuffers->VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, gpuBuffers->VBO);
+  glBufferData(GL_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpuBuffers->EAO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+}
+
 internal void clearBackground(Color color) {
   glClearColor(NormalizeColorChannel(color.r), NormalizeColorChannel(color.g),
                NormalizeColorChannel(color.b), NormalizeColorChannel(color.a));
@@ -141,7 +168,7 @@ internal void clearBackground(Color color) {
 
 internal void drawLine(V2f start, V2f end, u32 shaderProgram, u32 *VAO,
                        u32 *VBO) {
-  float vertices[] = {start.x, start.y, 0.0, end.x, end.y, 0.0f};
+  f32 vertices[] = {start.x, start.y, 0.0, end.x, end.y, 0.0f};
 
   glUseProgram(shaderProgram);
   glBindVertexArray(*VAO);
@@ -155,7 +182,7 @@ internal void drawLine(V2f start, V2f end, u32 shaderProgram, u32 *VAO,
 
 internal void drawTrinagle(V2f v1, V2f v2, V2f v3, u32 shaderProgram, u32 *VAO,
                            u32 *VBO) {
-  float vertices[] = {
+  f32 vertices[] = {
       v1.x, v1.y, 0.0f, v2.x, v2.y, 0.0f, v3.x, v3.y, 0.0f,
   };
 
@@ -168,8 +195,8 @@ internal void drawTrinagle(V2f v1, V2f v2, V2f v3, u32 shaderProgram, u32 *VAO,
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-internal void drawRectangle(Rectangle rect, u32 shaderProgram, u32 *VBO,
-                            u32 *VAO, u32 *EBO) {
+internal void drawRectangle(Rectangle rect, u32 shaderProgram,
+                            GpuBuffers *gpubuffers) {
   float vertices[] = {
       rect.x,
       rect.y,
@@ -185,21 +212,50 @@ internal void drawRectangle(Rectangle rect, u32 shaderProgram, u32 *VBO,
       0.0f,
   };
 
-  unsigned int indices[] = {
+  u32 indices[] = {
       0, 1, 2, 0, 2, 3,
   };
 
   glUseProgram(shaderProgram);
-  glBindVertexArray(*VAO);
+  glBindVertexArray(gpubuffers->VAO);
 
-  glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+  glBindBuffer(GL_ARRAY_BUFFER, gpubuffers->VBO);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *EBO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpubuffers->EAO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
                GL_STATIC_DRAW);
 
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
+                          f32 radius, u32 shaderProgram,
+                          GpuBuffers *gpubuffers) {
+  u32 vertexCount = segments + 2;
+  f32 *vertices = (f32 *)arenaAlloc(frameArena, vertexCount * 3 * sizeof(f32));
+  vertices[0] = center.x;
+  vertices[1] = center.y;
+  vertices[2] = 0.0f;
+
+  for (i32 i = 0; i <= segments; i++) {
+    f32 theta = 2.0f * PI * f32(i) / f32(segments);
+    f32 x = radius * cosf(theta);
+    f32 y = radius * sinf(theta);
+
+    u32 verticesIndex = (i + 1) * 3;
+    vertices[verticesIndex] = x;
+    vertices[verticesIndex + 1] = y;
+    vertices[verticesIndex + 2] = 0.0f;
+  }
+
+  glUseProgram(shaderProgram);
+  glBindVertexArray(gpubuffers->VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, gpubuffers->VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * 3 * sizeof(f32), vertices);
+
+  glDrawArrays(GL_TRIANGLE_FAN, 0, vertexCount);
 }
 
 int main(void) {
@@ -213,23 +269,11 @@ int main(void) {
   u32 fragmentShader;
   u32 shaderProgram;
   loadShaders(vertexShader, fragmentShader, &shaderProgram);
-
-  u32 VAO;
-  u32 VBO;
-  u32 EBO;
-  glGenVertexArrays(1, &VAO);
-  glGenBuffers(1, &VBO);
-  glGenBuffers(1, &EBO);
-
-  glBindVertexArray(VAO);
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
-
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_STATIC_DRAW);
-
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
+  GpuBuffers gpubuffers;
+  initGpu(&gpubuffers);
+  u8 frameBuffer[4096];
+  Arena frameArena = {};
+  frameArena = arenaInit(frameBuffer, 4096);
 
   Color backgroundColor = {
       .r = 0x11,
@@ -237,6 +281,11 @@ int main(void) {
       .b = 0x11,
       .a = 0xff,
   };
+  V2f center = {
+      .x = 0.0f,
+      .y = 0.0f,
+  };
+
   V2f startx = {
       .x = 1.0f,
       .y = 0.0f,
@@ -277,13 +326,14 @@ int main(void) {
   };
 
   while (!glfwWindowShouldClose(window)) {
-
+    arenaReset(&frameArena);
     clearBackground(backgroundColor);
 
     // drawLine(startx, endx, shaderProgram, &VBO, &VAO);
     // drawLine(starty, endy, shaderProgram, &VBO, &VAO);
     // drawTrinagle(v1, v2, v3, shaderProgram, &VAO, &VBO);
-    drawRectangle(rect, shaderProgram, &VAO, &VBO, &EBO);
+    // drawRectangle(rect, shaderProgram, &gpubuffers);
+    drawPolygon(&frameArena, center, 6, 0.5f, shaderProgram, &gpubuffers);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
