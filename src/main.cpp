@@ -29,6 +29,8 @@
 
 #define GPU_BUFFER_SIZE 4096
 #define PI 3.14159265359f
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 450
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -155,12 +157,14 @@ internal void initGpu() {
 
 internal Window *createWindow(u32 windowWidth, u32 windowHeight,
                               const char *title) {
-
   glfwSetErrorCallback(errorCallback);
-
+  // NOTE: (omar) forcing x11 just to mimic raylib window behaviour since thats
+  // what i prefer
+  glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
   if (!glfwInit())
     exit(EXIT_FAILURE);
 
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -171,6 +175,15 @@ internal Window *createWindow(u32 windowWidth, u32 windowHeight,
     glfwTerminate();
     exit(EXIT_FAILURE);
   }
+  // NOTE: (omar) centering window
+  GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+  const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+
+  int monitorX, monitorY;
+  glfwGetMonitorPos(monitor, &monitorX, &monitorY);
+
+  glfwSetWindowPos(window, monitorX + (mode->width - (int)windowWidth) / 2,
+                   monitorY + (mode->height - (int)windowHeight) / 2);
   glfwSetKeyCallback(window, keyCallback);
   glfwMakeContextCurrent(window);
 
@@ -195,22 +208,33 @@ internal void clearBackground(Color color) {
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
+// TODO: (omar) use Orthographic Projection instead
+internal V2f fromNDCtoScreenSpace(V2f NDC) {
+  V2f ScreenSpace = {};
+  ScreenSpace.x = (NDC.x + 1.0f) / 2.0f * WINDOW_WIDTH;
+  ScreenSpace.y = (1.0f - NDC.y) / 2.0f * WINDOW_HEIGHT;
+  return ScreenSpace;
+}
+
+internal V2f fromScreenSpacetoNDC(V2f ScreenSpace) {
+  V2f NDC = {};
+  NDC.x = (ScreenSpace.x / WINDOW_WIDTH) * 2.0f - 1.0f;
+  NDC.y = 1.0f - (ScreenSpace.y / WINDOW_HEIGHT) * 2.0f;
+  return NDC;
+}
+
 internal void drawLine(V2f start, V2f end, Color color) {
+  V2f NDCStart = fromScreenSpacetoNDC(start);
+  V2f NDCEnd = fromScreenSpacetoNDC(end);
+
+  f32 r = NormalizeColorChannel(color.r);
+  f32 g = NormalizeColorChannel(color.g);
+  f32 b = NormalizeColorChannel(color.b);
+  f32 a = NormalizeColorChannel(color.a);
+
   f32 vertices[] = {
-      start.x,
-      start.y,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
-      end.x,
-      end.y,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
+      NDCStart.x, NDCStart.y, 0.0f, r, g, b, a,
+      NDCEnd.x,   NDCEnd.y,   0.0f, r, g, b, a,
   };
 
   glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
@@ -221,28 +245,20 @@ internal void drawLine(V2f start, V2f end, Color color) {
 }
 
 internal void drawTrinagle(V2f v1, V2f v2, V2f v3, Color color) {
+
+  V2f v1NDC = fromScreenSpacetoNDC(v1);
+  V2f v2NDC = fromScreenSpacetoNDC(v2);
+  V2f v3NDC = fromScreenSpacetoNDC(v3);
+
+  f32 r = NormalizeColorChannel(color.r);
+  f32 g = NormalizeColorChannel(color.g);
+  f32 b = NormalizeColorChannel(color.b);
+  f32 a = NormalizeColorChannel(color.a);
+
   f32 vertices[] = {
-      v1.x,
-      v1.y,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
-      v2.x,
-      v2.y,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
-      v3.x,
-      v3.y,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
+      v1NDC.x, v1NDC.y, 0.0f, r, g, b, a, // v1
+      v2NDC.x, v2NDC.y, 0.0f, r, g, b, a, // v2
+      v3NDC.x, v3NDC.y, 0.0f, r, g, b, a, // v3
   };
 
   glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
@@ -252,37 +268,21 @@ internal void drawTrinagle(V2f v1, V2f v2, V2f v3, Color color) {
 }
 
 internal void drawRectangle(Rectangle rect, Color color) {
-  float vertices[] = {
-      rect.x,
-      rect.y,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
-      rect.x + rect.width,
-      rect.y,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
-      rect.x + rect.width,
-      rect.y + rect.height,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
-      rect.x,
-      rect.y + rect.height,
-      0.0f,
-      NormalizeColorChannel(color.r),
-      NormalizeColorChannel(color.g),
-      NormalizeColorChannel(color.b),
-      NormalizeColorChannel(color.a),
-  };
+  V2f topLeftNDC = fromScreenSpacetoNDC((V2f){rect.x, rect.y});
+  V2f bottomRightNDC =
+      fromScreenSpacetoNDC((V2f){rect.x + rect.width, rect.y + rect.height});
 
+  f32 r = NormalizeColorChannel(color.r);
+  f32 g = NormalizeColorChannel(color.g);
+  f32 b = NormalizeColorChannel(color.b);
+  f32 a = NormalizeColorChannel(color.a);
+
+  f32 vertices[] = {
+      topLeftNDC.x,     topLeftNDC.y,     0.0f, r, g, b, a,
+      bottomRightNDC.x, topLeftNDC.y,     0.0f, r, g, b, a,
+      bottomRightNDC.x, bottomRightNDC.y, 0.0f, r, g, b, a,
+      topLeftNDC.x,     bottomRightNDC.y, 0.0f, r, g, b, a,
+  };
   u32 indices[] = {
       0, 1, 2, 0, 2, 3,
   };
@@ -300,12 +300,15 @@ internal void drawRectangle(Rectangle rect, Color color) {
 internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
                           f32 radius, Color color) {
 
+  V2f centerNDC = fromScreenSpacetoNDC(center);
+  f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
+  f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
   u32 vertexCount = segments + 2;
   f32 *vertices = (f32 *)arenaAlloc(frameArena, vertexCount * 7 * sizeof(f32));
   // NOTE: (omar) arena overflow
   Assert(vertices != NULL);
-  vertices[0] = center.x;
-  vertices[1] = center.y;
+  vertices[0] = centerNDC.x;
+  vertices[1] = centerNDC.y;
   vertices[2] = 0.0f;
   vertices[3] = NormalizeColorChannel(color.r);
   vertices[4] = NormalizeColorChannel(color.g);
@@ -314,8 +317,8 @@ internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
 
   for (i32 i = 0; i < segments + 1; i++) {
     f32 theta = 2.0f * PI * f32(i) / f32(segments);
-    f32 x = center.x + radius * cosf(theta);
-    f32 y = center.y + radius * sinf(theta);
+    f32 x = centerNDC.x + radiusX * cosf(theta);
+    f32 y = centerNDC.y + radiusY * sinf(theta);
 
     u32 verticesIndex = (i + 1) * 7;
     vertices[verticesIndex] = x;
@@ -335,13 +338,16 @@ internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
 
 internal void drawCircle(Arena *frameArena, V2f center, f32 radius,
                          Color color) {
+  V2f centerNDC = fromScreenSpacetoNDC(center);
+  f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
+  f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
   u32 segments = 50;
   u32 vertexCount = segments + 2;
   f32 *vertices = (f32 *)arenaAlloc(frameArena, vertexCount * 7 * sizeof(f32));
   // NOTE: (omar) arena overflow
   Assert(vertices != NULL);
-  vertices[0] = center.x;
-  vertices[1] = center.y;
+  vertices[0] = centerNDC.x;
+  vertices[1] = centerNDC.y;
   vertices[2] = 0.0f;
   vertices[3] = NormalizeColorChannel(color.r);
   vertices[4] = NormalizeColorChannel(color.g);
@@ -350,8 +356,8 @@ internal void drawCircle(Arena *frameArena, V2f center, f32 radius,
 
   for (i32 i = 0; i < segments + 1; i++) {
     f32 theta = 2.0f * PI * f32(i) / f32(segments);
-    f32 x = center.x + radius * cosf(theta);
-    f32 y = center.y + radius * sinf(theta);
+    f32 x = centerNDC.x + radiusX * cosf(theta);
+    f32 y = centerNDC.y + radiusY * sinf(theta);
 
     u32 verticesIndex = (i + 1) * 7;
     vertices[verticesIndex] = x;
@@ -370,8 +376,8 @@ internal void drawCircle(Arena *frameArena, V2f center, f32 radius,
 }
 
 int main(void) {
-  i32 windowWidth = 800;
-  i32 windowHeight = 800;
+  i32 windowWidth = WINDOW_WIDTH;
+  i32 windowHeight = WINDOW_HEIGHT;
   Window *window = createWindow(windowWidth, windowHeight, "open gl");
 
   Color backgroundColor = {
@@ -380,14 +386,12 @@ int main(void) {
       0x11,
       0xff,
   };
-
   Color lineColor = {
       0xff,
       0xff,
       0xff,
       0xff,
   };
-
   Color rectColor = {
       0x11,
       0x05,
@@ -402,47 +406,45 @@ int main(void) {
   };
 
   V2f center = {
-      .x = 0.0f,
-      .y = 0.0f,
+      .x = WINDOW_WIDTH / 2.0f,
+      .y = WINDOW_HEIGHT / 2.0f,
   };
 
   V2f startx = {
-      .x = 1.0f,
-      .y = 0.0f,
+      .x = 0.0f,
+      .y = WINDOW_HEIGHT / 2.0f,
   };
-
   V2f endx = {
-      .x = -1.0f,
+      .x = WINDOW_WIDTH,
+      .y = WINDOW_HEIGHT / 2.0f,
+  };
+  V2f starty = {
+      .x = WINDOW_WIDTH / 2.0f,
       .y = 0.0f,
   };
-
-  V2f starty = {
-      .x = 0.0f,
-      .y = 1.0f,
-  };
-
   V2f endy = {
-      .x = 0.0f,
-      .y = -1.0f,
+      .x = WINDOW_WIDTH / 2.0f,
+      .y = WINDOW_HEIGHT,
   };
 
   V2f v1 = {
-      .x = -0.5f,
-      .y = -0.5f,
-  };
-  V2f v2 = {
-      .x = 0.5f,
-      .y = -0.5f,
-  };
-  V2f v3 = {
-      .x = 0.5f,
-      .y = 0.5f,
-  };
-  Rectangle rect = {
       .x = 0.0f,
       .y = 0.0f,
-      .width = 1.0f,
-      .height = 1.0f,
+  };
+  V2f v2 = {
+      .x = WINDOW_WIDTH / 2.0f,
+      .y = 0.0f,
+  };
+  V2f v3 = {
+      .x = WINDOW_WIDTH / 2.0f,
+      .y = WINDOW_HEIGHT / 2.0f,
+  };
+
+  Rectangle rect = {
+      .x = WINDOW_WIDTH / 2.0f,
+      .y = WINDOW_HEIGHT / 2.0f,
+      .width = 10.0f,
+      .height = 10.0f,
   };
 
   u32 frameArenaSize = Kilobytes(100);
@@ -453,11 +455,12 @@ int main(void) {
     arenaReset(&frameArena);
     clearBackground(backgroundColor);
 
-    drawLine(startx, endx, lineColor);
-    drawLine(starty, endy, lineColor);
+    // drawLine(startx, endx, lineColor);
+    // drawLine(starty, endy, lineColor);
     // drawRectangle(rect, rectColor);
-    // drawPolygon(&frameArena, center, 50, 0.5f, polyColor);
-    drawCircle(&frameArena, center, 0.5f, rectColor);
+    // drawTrinagle(v1, v2, v3, rectColor);
+    // drawPolygon(&frameArena, center, 8, 50, polyColor);
+    // drawCircle(&frameArena, center, 50.0f, rectColor);
 
     glfwSwapBuffers(window);
     glfwPollEvents();

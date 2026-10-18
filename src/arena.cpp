@@ -11,7 +11,7 @@ typedef struct {
 } Arena;
 
 Arena arenaInit(uint8_t *buffer, size_t size) {
-  Arena arena = {0};
+  Arena arena = {};
   arena.buffer = buffer;
   arena.size = size;
   arena.offset = 0;
