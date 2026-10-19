@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <cstdint>
+#include <time.h>
 
 #define GPU_BUFFER_SIZE Megabytes(1)
 #define WINDOW_WIDTH 800.0f
@@ -459,6 +460,28 @@ internal void drawCircleOutline(Arena *frameArena, V2f center, f32 radius,
   glDrawArrays(GL_POINTS, 0, vertexCount);
 }
 
+void lockFps(u32 fps, u64 frequency, u64 *startCounter, f32 *dt) {
+  u64 endCounter = glfwGetTimerValue();
+  f64 elapsedMs = (f64)(endCounter - *startCounter) * 1000.0 / (f64)frequency;
+  local_persist f32 targetMilliSecondsPerFrame = 1000.0f / (f32)fps;
+
+  if (elapsedMs < targetMilliSecondsPerFrame) {
+    f64 sleepMs = targetMilliSecondsPerFrame - elapsedMs - 1.0;
+    if (sleepMs > 0.0) {
+      struct timespec ts;
+      ts.tv_sec = 0;
+      ts.tv_nsec = (long)(sleepMs * 1e6);
+      nanosleep(&ts, NULL);
+    }
+    while (elapsedMs < targetMilliSecondsPerFrame) {
+      endCounter = glfwGetTimerValue();
+      elapsedMs = (f64)(endCounter - *startCounter) * 1000.0 / (f64)frequency;
+    }
+  }
+  *dt = elapsedMs / 1000.0f;
+  *startCounter = endCounter;
+}
+
 int main(void) {
   i32 windowWidth = WINDOW_WIDTH;
   i32 windowHeight = WINDOW_HEIGHT;
@@ -535,9 +558,17 @@ int main(void) {
   u8 frameBuffer[frameArenaSize];
   Arena frameArena = {};
   frameArena = arenaInit(frameBuffer, frameArenaSize);
-  glfwSwapInterval(1);
-  f32 rot = 0;
+
+  u64 frequency = glfwGetTimerFrequency();
+  u64 startCounter = glfwGetTimerValue();
+  u32 fps = 60;
+  f32 rot = 0.0f;
+  f32 dt = 0.0f;
+  char infoBuffer[Kilobytes(10)];
+
   while (!glfwWindowShouldClose(window)) {
+    glfwSwapBuffers(window);
+    glfwPollEvents();
     arenaReset(&frameArena);
     clearBackground(backgroundColor);
     rot += 1.0f;
@@ -553,8 +584,9 @@ int main(void) {
     // drawCircle(&frameArena, center, 50.0f, rectColor);
     // drawCircleOutline(&frameArena, center, 50.0f, rectColor);
 
-    glfwSwapBuffers(window);
-    glfwPollEvents();
+    lockFps(fps, frequency, &startCounter, &dt);
+    snprintf(infoBuffer, sizeof(infoBuffer), "DELTA TIME = %.5fs", dt);
+    traceLog(DEBUG, infoBuffer);
   }
 
   destroyWindow(window);
