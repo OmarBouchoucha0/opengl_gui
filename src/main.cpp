@@ -3,7 +3,7 @@
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
-#include "arena.c"
+#include "utils.cpp"
 
 #include "linmath.h"
 
@@ -12,63 +12,11 @@
 #include <stdio.h>
 #include <cstdint>
 
-#define NormalizeColorChannel(color) ((float)(color) / 255.0f)
-#define Assert(Expression)                                                     \
-  if (!(Expression)) {                                                         \
-    *(int *)0 = 0;                                                             \
-  }
-
-#define Kilobytes(x) ((u64)(x) * 1024)
-#define Megabytes(x) ((u64)(x) * 1024 * 1024)
-#define Gigabytes(x) ((u64)(x) * 1024 * 1024 * 1024)
-#define Terabytes(x) ((u64)(x) * 1024 * 1024 * 1024 * 1024)
-
-#define global_variable static
-#define local_persist static
-#define internal static
-
 #define GPU_BUFFER_SIZE 4096
-#define PI 3.14159265359f
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 450
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-
-typedef float f32;
-typedef double f64;
+#define WINDOW_WIDTH 800.0f
+#define WINDOW_HEIGHT 450.0f
 
 typedef GLFWwindow Window;
-
-struct Color {
-  u8 r;
-  u8 g;
-  u8 b;
-  u8 a;
-};
-
-struct V2 {
-  i32 x;
-  i32 y;
-};
-
-struct V2f {
-  f32 x;
-  f32 y;
-};
-
-struct Rectangle {
-  f32 x;
-  f32 y;
-  f32 width;
-  f32 height;
-};
 
 struct GpuState {
   const char *vertexShaderSource;
@@ -267,6 +215,12 @@ internal void drawTrinagle(V2f v1, V2f v2, V2f v3, Color color) {
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+internal void drawTrinagleOutline(V2f v1, V2f v2, V2f v3, Color color) {
+  drawLine(v1, v2, color);
+  drawLine(v2, v3, color);
+  drawLine(v3, v1, color);
+}
+
 internal void drawRectangle(Rectangle rect, Color color) {
   V2f topLeftNDC = fromScreenSpacetoNDC((V2f){rect.x, rect.y});
   V2f bottomRightNDC =
@@ -295,6 +249,17 @@ internal void drawRectangle(Rectangle rect, Color color) {
                GL_STATIC_DRAW);
 
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+internal void drawRectangleOutline(Rectangle rect, Color color) {
+  V2f topLeft = {.x = rect.x, .y = rect.y};
+  V2f topRight = {.x = rect.x + rect.width, .y = rect.y};
+  V2f bottomLeft = {.x = rect.x, .y = rect.y + rect.height};
+  V2f bottomRight = {.x = rect.x + rect.width, .y = rect.y + rect.height};
+  drawLine(topLeft, topRight, color);
+  drawLine(topRight, bottomRight, color);
+  drawLine(bottomRight, bottomLeft, color);
+  drawLine(bottomLeft, topLeft, color);
 }
 
 internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
@@ -428,12 +393,12 @@ int main(void) {
   };
 
   V2f v1 = {
-      .x = 0.0f,
-      .y = 0.0f,
+      .x = 100.0f,
+      .y = 100.0f,
   };
   V2f v2 = {
       .x = WINDOW_WIDTH / 2.0f,
-      .y = 0.0f,
+      .y = 50.0f,
   };
   V2f v3 = {
       .x = WINDOW_WIDTH / 2.0f,
@@ -441,10 +406,10 @@ int main(void) {
   };
 
   Rectangle rect = {
-      .x = WINDOW_WIDTH / 2.0f,
-      .y = WINDOW_HEIGHT / 2.0f,
-      .width = 10.0f,
-      .height = 10.0f,
+      .x = 200.0f,
+      .y = 200.0f,
+      .width = 200.0f,
+      .height = 200.0f,
   };
 
   u32 frameArenaSize = Kilobytes(100);
@@ -458,7 +423,8 @@ int main(void) {
     // drawLine(startx, endx, lineColor);
     // drawLine(starty, endy, lineColor);
     // drawRectangle(rect, rectColor);
-    // drawTrinagle(v1, v2, v3, rectColor);
+    drawRectangleOutline(rect, rectColor);
+    // drawTrinagleOutline(v1, v2, v3, rectColor);
     // drawPolygon(&frameArena, center, 8, 50, polyColor);
     // drawCircle(&frameArena, center, 50.0f, rectColor);
 
