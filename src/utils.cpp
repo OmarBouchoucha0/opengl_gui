@@ -20,6 +20,8 @@
 #define internal static
 
 #define PI 3.14159265359f
+#define DegreeToRadian(x) ((f32)(x) * (PI) / 180.0f)
+#define RadianToDegree(x) ((f32)(x) * (PI) / 180.0f)
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -38,6 +40,13 @@ struct Color {
   u8 g;
   u8 b;
   u8 a;
+};
+
+struct ColorNormolized {
+  f32 r;
+  f32 g;
+  f32 b;
+  f32 a;
 };
 
 struct V2 {
@@ -81,6 +90,33 @@ void *arenaAlloc(Arena *arena, size_t memSize) {
   void *mem_alloc_start = arena->buffer + arena->offset;
   arena->offset = new_offset;
   return mem_alloc_start;
+}
+
+internal V2f rotatePointRadian(V2f offset, f32 theta) {
+  f32 c = cosf(theta);
+  f32 s = sinf(theta);
+  return {
+      offset.x * c - offset.y * s,
+      offset.x * s + offset.y * c,
+  };
+}
+
+internal V2f rotatePointDegree(V2f offset, f32 rotation) {
+  f32 theta = DegreeToRadian(rotation);
+  f32 c = cosf(theta);
+  f32 s = sinf(theta);
+  return {
+      offset.x * c - offset.y * s,
+      offset.x * s + offset.y * c,
+  };
+}
+
+internal ColorNormolized normolizeColor(Color color) {
+  f32 r = NormalizeColorChannel(color.r);
+  f32 g = NormalizeColorChannel(color.g);
+  f32 b = NormalizeColorChannel(color.b);
+  f32 a = NormalizeColorChannel(color.a);
+  return (ColorNormolized){r, g, b, a};
 }
 
 #endif // UTILS_H
