@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <cstdint>
 
-#define GPU_BUFFER_SIZE 4096
+#define GPU_BUFFER_SIZE Megabytes(1)
 #define WINDOW_WIDTH 800.0f
 #define WINDOW_HEIGHT 450.0f
 
@@ -81,6 +81,9 @@ internal void initGpu() {
 
   glDeleteShader(GPU_STATE.vertexShader);
   glDeleteShader(GPU_STATE.fragmentShader);
+
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // NOTE: (omar) generate buffers
   glGenVertexArrays(1, &GPU_STATE.VAO);
@@ -252,14 +255,18 @@ internal void drawRectangle(Rectangle rect, Color color) {
 }
 
 internal void drawRectangleOutline(Rectangle rect, Color color) {
-  V2f topLeft = {.x = rect.x, .y = rect.y};
-  V2f topRight = {.x = rect.x + rect.width, .y = rect.y};
-  V2f bottomLeft = {.x = rect.x, .y = rect.y + rect.height};
-  V2f bottomRight = {.x = rect.x + rect.width, .y = rect.y + rect.height};
-  drawLine(topLeft, topRight, color);
-  drawLine(topRight, bottomRight, color);
-  drawLine(bottomRight, bottomLeft, color);
-  drawLine(bottomLeft, topLeft, color);
+  float thickness = 1.0f;
+  Rectangle top = {rect.x, rect.y, rect.width, thickness};
+  Rectangle bottom = {rect.x, rect.y + rect.height - thickness, rect.width,
+                      thickness};
+  Rectangle left = {rect.x, rect.y + thickness, thickness,
+                    rect.height - 2 * thickness};
+  Rectangle right = {rect.x + rect.width - thickness, rect.y + thickness,
+                     thickness, rect.height - 2 * thickness};
+  drawRectangle(top, color);
+  drawRectangle(bottom, color);
+  drawRectangle(left, color);
+  drawRectangle(right, color);
 }
 
 internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
@@ -338,6 +345,38 @@ internal void drawCircle(Arena *frameArena, V2f center, f32 radius,
   glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * 7 * sizeof(f32), vertices);
 
   glDrawArrays(GL_TRIANGLE_FAN, 0, vertexCount);
+}
+
+internal void drawCircleOutline(Arena *frameArena, V2f center, f32 radius,
+                                Color color) {
+  V2f centerNDC = fromScreenSpacetoNDC(center);
+  f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
+  f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
+  u32 segments = 500;
+  u32 vertexCount = segments + 2;
+  f32 *vertices = (f32 *)arenaAlloc(frameArena, vertexCount * 7 * sizeof(f32));
+  // NOTE: (omar) arena overflow
+  Assert(vertices != NULL);
+
+  for (i32 i = 0; i < segments + 1; i++) {
+    f32 theta = 2.0f * PI * f32(i) / f32(segments);
+    f32 x = centerNDC.x + radiusX * cosf(theta);
+    f32 y = centerNDC.y + radiusY * sinf(theta);
+
+    u32 verticesIndex = i * 7;
+    vertices[verticesIndex] = x;
+    vertices[verticesIndex + 1] = y;
+    vertices[verticesIndex + 2] = 0.0f;
+    vertices[verticesIndex + 3] = NormalizeColorChannel(color.r);
+    vertices[verticesIndex + 4] = NormalizeColorChannel(color.g);
+    vertices[verticesIndex + 5] = NormalizeColorChannel(color.b);
+    vertices[verticesIndex + 6] = NormalizeColorChannel(color.a);
+  }
+
+  glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * 7 * sizeof(f32), vertices);
+
+  glDrawArrays(GL_POINTS, 0, vertexCount);
 }
 
 int main(void) {
@@ -427,6 +466,7 @@ int main(void) {
     // drawTrinagleOutline(v1, v2, v3, rectColor);
     // drawPolygon(&frameArena, center, 8, 50, polyColor);
     // drawCircle(&frameArena, center, 50.0f, rectColor);
+    // drawCircleOutline(&frameArena, center, 50.0f, rectColor);
 
     glfwSwapBuffers(window);
     glfwPollEvents();
