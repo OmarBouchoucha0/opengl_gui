@@ -5,8 +5,6 @@
 #include <GLFW/glfw3.h>
 #include "utils.cpp"
 
-#include "linmath.h"
-
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -254,6 +252,88 @@ internal void drawRectangle(Rectangle rect, Color color) {
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
+internal void drawRectangleEx(Rectangle rect, f32 rotation, Color color) {
+  V2f center = {};
+  center.x = rect.x + rect.width / 2.0f;
+  center.y = rect.y + rect.height / 2.0f;
+
+  f32 theta = DegreeToRadian(rotation);
+  f32 halfWidth = rect.width / 2.0f;
+  f32 halfHeight = rect.height / 2.0f;
+
+  V2f rot = {};
+
+  rot = rotatePointRadian({-halfWidth, -halfHeight}, theta);
+  V2f topLeft = {};
+  topLeft.x = center.x + rot.x;
+  topLeft.y = center.y + rot.y;
+
+  rot = rotatePointRadian({halfWidth, -halfHeight}, theta);
+  V2f topRight = {};
+  topRight.x = center.x + rot.x;
+  topRight.y = center.y + rot.y;
+
+  rot = rotatePointRadian({-halfWidth, halfHeight}, theta);
+  V2f bottomLeft = {};
+  bottomLeft.x = center.x + rot.x;
+  bottomLeft.y = center.y + rot.y;
+
+  rot = rotatePointRadian({halfWidth, halfHeight}, theta);
+  V2f bottomRight = {};
+  bottomRight.x = center.x + rot.x;
+  bottomRight.y = center.y + rot.y;
+
+  V2f topLeftNDC = fromScreenSpacetoNDC(topLeft);
+  V2f topRightNDC = fromScreenSpacetoNDC(topRight);
+  V2f bottomLeftNDC = fromScreenSpacetoNDC(bottomLeft);
+  V2f bottomRightNDC = fromScreenSpacetoNDC(bottomRight);
+
+  ColorNormolized colorNormolized = normolizeColor(color);
+
+  f32 vertices[] = {
+      topLeftNDC.x,
+      topLeftNDC.y,
+      0.0f,
+      colorNormolized.r,
+      colorNormolized.g,
+      colorNormolized.b,
+      colorNormolized.a,
+      topRightNDC.x,
+      topRightNDC.y,
+      0.0f,
+      colorNormolized.r,
+      colorNormolized.g,
+      colorNormolized.b,
+      colorNormolized.a,
+      bottomRightNDC.x,
+      bottomRightNDC.y,
+      0.0f,
+      colorNormolized.r,
+      colorNormolized.g,
+      colorNormolized.b,
+      colorNormolized.a,
+      bottomLeftNDC.x,
+      bottomLeftNDC.y,
+      0.0f,
+      colorNormolized.r,
+      colorNormolized.g,
+      colorNormolized.b,
+      colorNormolized.a,
+  };
+  u32 indices[] = {
+      0, 1, 2, 0, 2, 3,
+  };
+
+  glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GPU_STATE.EAO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+               GL_STATIC_DRAW);
+
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
 internal void drawRectangleOutline(Rectangle rect, Color color) {
   float thickness = 1.0f;
   Rectangle top = {rect.x, rect.y, rect.width, thickness};
@@ -455,14 +535,19 @@ int main(void) {
   u8 frameBuffer[frameArenaSize];
   Arena frameArena = {};
   frameArena = arenaInit(frameBuffer, frameArenaSize);
+  glfwSwapInterval(1);
+  f32 rot = 0;
   while (!glfwWindowShouldClose(window)) {
     arenaReset(&frameArena);
     clearBackground(backgroundColor);
+    rot += 1.0f;
 
     // drawLine(startx, endx, lineColor);
     // drawLine(starty, endy, lineColor);
     // drawRectangle(rect, rectColor);
-    drawRectangleOutline(rect, rectColor);
+    // drawRectangleOutline(rect, rectColor);
+    // drawTrinagle(v1, v2, v3, rectColor);
+    drawRectangleEx(rect, rot, rectColor);
     // drawTrinagleOutline(v1, v2, v3, rectColor);
     // drawPolygon(&frameArena, center, 8, 50, polyColor);
     // drawCircle(&frameArena, center, 50.0f, rectColor);
