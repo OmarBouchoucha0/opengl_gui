@@ -84,6 +84,8 @@ internal void initGpu() {
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+  glEnable(GL_MULTISAMPLE);
+
   // NOTE: (omar) generate buffers
   glGenVertexArrays(1, &GPU_STATE.VAO);
   glGenBuffers(1, &GPU_STATE.VBO);
@@ -114,6 +116,7 @@ internal Window *createWindow(u32 windowWidth, u32 windowHeight,
   if (!glfwInit())
     exit(EXIT_FAILURE);
 
+  glfwWindowHint(GLFW_SAMPLES, 8);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -128,12 +131,10 @@ internal Window *createWindow(u32 windowWidth, u32 windowHeight,
   // NOTE: (omar) centering window
   GLFWmonitor *monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-
-  int monitorX, monitorY;
+  i32 monitorX, monitorY;
   glfwGetMonitorPos(monitor, &monitorX, &monitorY);
-
-  glfwSetWindowPos(window, monitorX + (mode->width - (int)windowWidth) / 2,
-                   monitorY + (mode->height - (int)windowHeight) / 2);
+  glfwSetWindowPos(window, monitorX + (mode->width - (i32)windowWidth) / 2,
+                   monitorY + (mode->height - (i32)windowHeight) / 2);
   glfwSetKeyCallback(window, keyCallback);
   glfwMakeContextCurrent(window);
 
@@ -217,12 +218,6 @@ internal void drawTrinagle(V2f v1, V2f v2, V2f v3, Color color) {
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
-internal void drawTrinagleOutline(V2f v1, V2f v2, V2f v3, Color color) {
-  drawLine(v1, v2, color);
-  drawLine(v2, v3, color);
-  drawLine(v3, v1, color);
-}
-
 internal void drawRectangle(Rectangle rect, Color color) {
   V2f topLeftNDC = fromScreenSpacetoNDC((V2f){rect.x, rect.y});
   V2f bottomRightNDC =
@@ -253,36 +248,36 @@ internal void drawRectangle(Rectangle rect, Color color) {
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
-internal void drawRectangleEx(Rectangle rect, f32 rotation, Color color) {
-  V2f center = {};
-  center.x = rect.x + rect.width / 2.0f;
-  center.y = rect.y + rect.height / 2.0f;
+internal void drawRectangleEx(Rectangle rect, V2f origin, f32 rotation,
+                              Color color) {
 
   f32 theta = DegreeToRadian(rotation);
-  f32 halfWidth = rect.width / 2.0f;
-  f32 halfHeight = rect.height / 2.0f;
+  f32 leftWidth = origin.x - rect.x;
+  f32 rightWidth = origin.x - rect.x + rect.width;
+  f32 topHeight = origin.y - rect.y;
+  f32 bottomHeight = origin.y - rect.y + rect.height;
 
   V2f rot = {};
 
-  rot = rotatePointRadian({-halfWidth, -halfHeight}, theta);
+  rot = rotatePointRadian({-leftWidth, -topHeight}, theta);
   V2f topLeft = {};
-  topLeft.x = center.x + rot.x;
-  topLeft.y = center.y + rot.y;
+  topLeft.x = origin.x + rot.x;
+  topLeft.y = origin.y + rot.y;
 
-  rot = rotatePointRadian({halfWidth, -halfHeight}, theta);
+  rot = rotatePointRadian({rightWidth, -topHeight}, theta);
   V2f topRight = {};
-  topRight.x = center.x + rot.x;
-  topRight.y = center.y + rot.y;
+  topRight.x = origin.x + rot.x;
+  topRight.y = origin.y + rot.y;
 
-  rot = rotatePointRadian({-halfWidth, halfHeight}, theta);
+  rot = rotatePointRadian({-leftWidth, bottomHeight}, theta);
   V2f bottomLeft = {};
-  bottomLeft.x = center.x + rot.x;
-  bottomLeft.y = center.y + rot.y;
+  bottomLeft.x = origin.x + rot.x;
+  bottomLeft.y = origin.y + rot.y;
 
-  rot = rotatePointRadian({halfWidth, halfHeight}, theta);
+  rot = rotatePointRadian({rightWidth, bottomHeight}, theta);
   V2f bottomRight = {};
-  bottomRight.x = center.x + rot.x;
-  bottomRight.y = center.y + rot.y;
+  bottomRight.x = origin.x + rot.x;
+  bottomRight.y = origin.y + rot.y;
 
   V2f topLeftNDC = fromScreenSpacetoNDC(topLeft);
   V2f topRightNDC = fromScreenSpacetoNDC(topRight);
@@ -335,8 +330,17 @@ internal void drawRectangleEx(Rectangle rect, f32 rotation, Color color) {
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
-internal void drawRectangleOutline(Rectangle rect, Color color) {
-  float thickness = 1.0f;
+internal void drawLineEx(V2f start, V2f end, f32 thickness, Color color) {
+  f32 angle = RadianToDegree(angleBetweenTwoPoints(start, end));
+  Rectangle rect = {};
+  rect.x = start.x + thickness / 2.0f;
+  rect.y = start.y + thickness / 2.0f;
+  rect.width = distanceBetweenTwoPoints(start, end);
+  rect.height = thickness;
+  drawRectangleEx(rect, {rect.x, rect.y}, angle, color);
+}
+
+internal void drawRectangleOutline(Rectangle rect, f32 thickness, Color color) {
   Rectangle top = {rect.x, rect.y, rect.width, thickness};
   Rectangle bottom = {rect.x, rect.y + rect.height - thickness, rect.width,
                       thickness};
@@ -350,16 +354,13 @@ internal void drawRectangleOutline(Rectangle rect, Color color) {
   drawRectangle(right, color);
 }
 
-internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
-                          f32 radius, Color color) {
+internal void drawPolygon(V2f center, u32 segments, f32 radius, Color color) {
 
   V2f centerNDC = fromScreenSpacetoNDC(center);
   f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
   f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
   u32 vertexCount = segments + 2;
-  f32 *vertices = (f32 *)arenaAlloc(frameArena, vertexCount * 7 * sizeof(f32));
-  // NOTE: (omar) arena overflow
-  Assert(vertices != NULL);
+  f32 vertices[7 * vertexCount];
   vertices[0] = centerNDC.x;
   vertices[1] = centerNDC.y;
   vertices[2] = 0.0f;
@@ -389,16 +390,13 @@ internal void drawPolygon(Arena *frameArena, V2f center, u32 segments,
   glDrawArrays(GL_TRIANGLE_FAN, 0, vertexCount);
 }
 
-internal void drawCircle(Arena *frameArena, V2f center, f32 radius,
-                         Color color) {
+internal void drawCircle(V2f center, f32 radius, Color color) {
   V2f centerNDC = fromScreenSpacetoNDC(center);
   f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
   f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
   u32 segments = 50;
   u32 vertexCount = segments + 2;
-  f32 *vertices = (f32 *)arenaAlloc(frameArena, vertexCount * 7 * sizeof(f32));
-  // NOTE: (omar) arena overflow
-  Assert(vertices != NULL);
+  f32 vertices[vertexCount * 7];
   vertices[0] = centerNDC.x;
   vertices[1] = centerNDC.y;
   vertices[2] = 0.0f;
@@ -428,17 +426,13 @@ internal void drawCircle(Arena *frameArena, V2f center, f32 radius,
   glDrawArrays(GL_TRIANGLE_FAN, 0, vertexCount);
 }
 
-internal void drawCircleOutline(Arena *frameArena, V2f center, f32 radius,
-                                Color color) {
+internal void drawCircleOutline(V2f center, f32 radius, Color color) {
   V2f centerNDC = fromScreenSpacetoNDC(center);
   f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
   f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
   u32 segments = 500;
   u32 vertexCount = segments + 2;
-  f32 *vertices = (f32 *)arenaAlloc(frameArena, vertexCount * 7 * sizeof(f32));
-  // NOTE: (omar) arena overflow
-  Assert(vertices != NULL);
-
+  f32 vertices[7 * vertexCount];
   for (i32 i = 0; i < segments + 1; i++) {
     f32 theta = 2.0f * PI * f32(i) / f32(segments);
     f32 x = centerNDC.x + radiusX * cosf(theta);
@@ -458,6 +452,14 @@ internal void drawCircleOutline(Arena *frameArena, V2f center, f32 radius,
   glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * 7 * sizeof(f32), vertices);
 
   glDrawArrays(GL_POINTS, 0, vertexCount);
+}
+
+// TODO: (omar) fix the inntersection of the lines
+internal void drawTrinagleOutline(V2f v1, V2f v2, V2f v3, f32 thickness,
+                                  Color color) {
+  drawLineEx(v1, v2, thickness, color);
+  drawLineEx(v2, v3, thickness, color);
+  drawLineEx(v3, v1, thickness, color);
 }
 
 void lockFps(u32 fps, u64 frequency, u64 *startCounter, f32 *dt) {
@@ -519,11 +521,11 @@ int main(void) {
 
   V2f startx = {
       .x = 0.0f,
-      .y = WINDOW_HEIGHT / 2.0f,
+      .y = 0.0f,
   };
   V2f endx = {
       .x = WINDOW_WIDTH,
-      .y = WINDOW_HEIGHT / 2.0f,
+      .y = WINDOW_HEIGHT,
   };
   V2f starty = {
       .x = WINDOW_WIDTH / 2.0f,
@@ -548,16 +550,11 @@ int main(void) {
   };
 
   Rectangle rect = {
-      .x = 200.0f,
-      .y = 200.0f,
-      .width = 200.0f,
+      .x = 100.0f,
+      .y = 100.0f,
+      .width = 500.0f,
       .height = 200.0f,
   };
-
-  u32 frameArenaSize = Kilobytes(100);
-  u8 frameBuffer[frameArenaSize];
-  Arena frameArena = {};
-  frameArena = arenaInit(frameBuffer, frameArenaSize);
 
   u64 frequency = glfwGetTimerFrequency();
   u64 startCounter = glfwGetTimerValue();
@@ -569,20 +566,21 @@ int main(void) {
   while (!glfwWindowShouldClose(window)) {
     glfwSwapBuffers(window);
     glfwPollEvents();
-    arenaReset(&frameArena);
     clearBackground(backgroundColor);
     rot += 1.0f;
 
     // drawLine(startx, endx, lineColor);
     // drawLine(starty, endy, lineColor);
+    // drawLineEx(startx, endx, 3.0f, lineColor);
     // drawRectangle(rect, rectColor);
-    // drawRectangleOutline(rect, rectColor);
+    // drawRectangleOutline(rect, 10.0f, rectColor);
     // drawTrinagle(v1, v2, v3, rectColor);
-    drawRectangleEx(rect, rot, rectColor);
-    // drawTrinagleOutline(v1, v2, v3, rectColor);
-    // drawPolygon(&frameArena, center, 8, 50, polyColor);
-    // drawCircle(&frameArena, center, 50.0f, rectColor);
-    // drawCircleOutline(&frameArena, center, 50.0f, rectColor);
+    // drawRectangleEx(rect, {0.0f, 0.0f}, 45, rectColor);
+
+    drawTrinagleOutline(v1, v2, v3, 5.0f, rectColor);
+    // drawPolygon( center, 8, 50, polyColor);
+    // drawCircle( center, 50.0f, rectColor);
+    // drawCircleOutline( center, 50.0f, rectColor);
 
     lockFps(fps, frequency, &startCounter, &dt);
     snprintf(infoBuffer, sizeof(infoBuffer), "DELTA TIME = %.5fs", dt);

@@ -1,6 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <cmath>
+#include <cstdlib>
 #include <stddef.h>
 #include <stdint.h>
 #include <cstdio>
@@ -21,8 +23,8 @@
 #define internal static
 
 #define PI 3.14159265359f
-#define DegreeToRadian(x) ((f32)(x) * (PI) / 180.0f)
-#define RadianToDegree(x) ((f32)(x) * (PI) / 180.0f)
+#define DegreeToRadian(x) ((f32)(x) * PI / 180.0f)
+#define RadianToDegree(x) ((f32)(x) * 180.0f / PI)
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -53,6 +55,33 @@ struct Rectangle {
   f32 height;
 };
 
+internal V2f rotatePointRadian(V2f offset, f32 theta) {
+  f32 c = cosf(theta);
+  f32 s = sinf(theta);
+  return {
+      offset.x * c - offset.y * s,
+      offset.x * s + offset.y * c,
+  };
+}
+
+internal V2f rotatePointDegree(V2f offset, f32 rotation) {
+  f32 theta = DegreeToRadian(rotation);
+  f32 c = cosf(theta);
+  f32 s = sinf(theta);
+  return {
+      offset.x * c - offset.y * s,
+      offset.x * s + offset.y * c,
+  };
+}
+
+internal f32 distanceBetweenTwoPoints(V2f p1, V2f p2) {
+  return sqrtf(powf(p2.x - p1.x, 2) + powf(p2.y - p1.y, 2));
+}
+
+internal f32 angleBetweenTwoPoints(V2f p1, V2f p2) {
+  return atan2f(p2.y - p1.y, p2.x - p1.x);
+}
+
 typedef struct {
   u8 *buffer;
   u32 offset;
@@ -80,15 +109,6 @@ internal void *arenaAlloc(Arena *arena, u32 memSize) {
 }
 internal u32 arenaSizeLeft(Arena arena) { return arena.size - arena.offset; }
 
-internal V2f rotatePointRadian(V2f offset, f32 theta) {
-  f32 c = cosf(theta);
-  f32 s = sinf(theta);
-  return {
-      offset.x * c - offset.y * s,
-      offset.x * s + offset.y * c,
-  };
-}
-
 struct Color {
   u8 r;
   u8 g;
@@ -102,16 +122,6 @@ struct ColorNormolized {
   f32 b;
   f32 a;
 };
-
-internal V2f rotatePointDegree(V2f offset, f32 rotation) {
-  f32 theta = DegreeToRadian(rotation);
-  f32 c = cosf(theta);
-  f32 s = sinf(theta);
-  return {
-      offset.x * c - offset.y * s,
-      offset.x * s + offset.y * c,
-  };
-}
 
 internal ColorNormolized normolizeColor(Color color) {
   f32 r = NormalizeColorChannel(color.r);
