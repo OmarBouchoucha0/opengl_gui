@@ -11,6 +11,7 @@
 #include "base/base_log.cpp"
 #include "base/base_arena.cpp"
 #include "render/render.cpp"
+#include "render/render.h"
 
 void lockFps(u32 fps, u64 frequency, u64 *startCounter, f32 *dt) {
   u64 endCounter = glfwGetTimerValue();
@@ -35,8 +36,8 @@ void lockFps(u32 fps, u64 frequency, u64 *startCounter, f32 *dt) {
 }
 
 int main(void) {
-  i32 windowWidth = 800;
-  i32 windowHeight = 450;
+  i32 windowWidth = 1300;
+  i32 windowHeight = 700;
   Window *window = createWindow(windowWidth, windowHeight, "open gl");
 
   Color backgroundColor = {
@@ -45,9 +46,27 @@ int main(void) {
       0x18,
       0xff,
   };
-  Color lineColor = {
+  Color white = {
       0xff,
       0xff,
+      0xff,
+      0xff,
+  };
+  Color red = {
+      0xff,
+      0x00,
+      0x00,
+      0xff,
+  };
+  Color green = {
+      0x00,
+      0xff,
+      0x00,
+      0xff,
+  };
+  Color blue = {
+      0x00,
+      0x00,
       0xff,
       0xff,
   };
@@ -96,6 +115,16 @@ int main(void) {
       .y = windowHeight / 2.0f,
   };
 
+  V2f start = {
+      .x = 100.0f,
+      .y = 100.0f,
+  };
+
+  V2f end = {
+      .x = 400.0f,
+      .y = 100.0f,
+  };
+
   u64 frequency = glfwGetTimerFrequency();
   u64 startCounter = glfwGetTimerValue();
   u32 fps = 60;
@@ -109,20 +138,6 @@ int main(void) {
     clearBackground(backgroundColor);
     rot += 1.0f;
 
-    // drawLine(startx, endx, lineColor);
-    // drawLine(starty, endy, lineColor);
-    // drawLineEx(startx, endx, 3.0f, lineColor);
-    // drawRectangle(rect, rectColor);
-    // drawRectangleOutline(rect, 10.0f, rectColor);
-    // drawTrinagle(v1, v2, v3, rectColor);
-    drawRectangleEx(rect, {windowWidth / 2.0f, windowHeight / 2.0f}, rot,
-                    rectColor);
-
-    // drawTrinagleOutline(v1, v2, v3, 5.0f, rectColor);
-    // drawPolygon(center, 8, 50, polyColor);
-    // drawCircle(center, 50.0f, rectColor);
-    // drawCircleOutline(center, 50.0f, rectColor);
-    //
     lockFps(fps, frequency, &startCounter, &dt);
     // snprintf(infoBuffer, sizeof(infoBuffer), "DELTA TIME = %.5fs", dt);
     // traceLog(DEBUG, infoBuffer);

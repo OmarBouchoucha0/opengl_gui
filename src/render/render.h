@@ -54,6 +54,7 @@ internal void clearBackground(Color color);
 internal void drawLine(V2f start, V2f end, Color color);
 internal void drawLineEx(V2f start, V2f end, f32 thickness, Color color);
 internal void drawTrinagle(V2f v1, V2f v2, V2f v3, Color color);
+internal void drawTrinagleEx(V2f v1, V2f v2, V2f v3, f32 rotation, Color color);
 internal void drawTrinagleOutline(V2f v1, V2f v2, V2f v3, f32 thickness,
                                   Color color);
 internal void drawRectangle(Rectangle rect, Color color);
@@ -62,6 +63,7 @@ internal void drawRectangleEx(Rectangle rect, V2f origin, f32 rotation,
 internal void drawRectangleOutline(Rectangle rect, f32 thickness, Color color);
 internal void drawPolygon(V2f center, u32 segments, f32 radius, Color color);
 internal void drawCircle(V2f center, f32 radius, Color color);
-internal void drawCircleOutline(V2f center, f32 radius, Color color);
+internal void drawCircleOutline(V2f center, f32 radius, f32 thickness,
+                                Color color);
 
 #endif // RENDER_H
