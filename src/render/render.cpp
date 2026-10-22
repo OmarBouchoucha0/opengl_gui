@@ -177,10 +177,15 @@ internal void drawLine(V2f start, V2f end, Color color) {
 internal void drawLineEx(V2f start, V2f end, f32 thickness, Color color) {
   f32 angle = RadianToDegree(angleBetweenTwoPoints(start, end));
   Rectangle rect = {};
-  rect.x = start.x + thickness / 2.0f;
-  rect.y = start.y + thickness / 2.0f;
+  rect.x = start.x;
+  rect.y = start.y;
   rect.width = distanceBetweenTwoPoints(start, end);
-  rect.height = thickness;
+  rect.height = thickness / 2.0f;
+  drawRectangleEx(rect, {rect.x, rect.y}, angle, color);
+  rect.x = start.x;
+  rect.y = start.y;
+  rect.width = distanceBetweenTwoPoints(start, end);
+  rect.height = -thickness / 2.0f;
   drawRectangleEx(rect, {rect.x, rect.y}, angle, color);
 }
 
@@ -207,12 +212,53 @@ internal void drawTrinagle(V2f v1, V2f v2, V2f v3, Color color) {
   glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+internal void drawTrinagleEx(V2f v1, V2f v2, V2f v3, f32 rotation,
+                             Color color) {
+  V2f v1NDC = fromScreenSpacetoNDC(rotatePointDegree(v1, rotation));
+  V2f v2NDC = fromScreenSpacetoNDC(rotatePointDegree(v2, rotation));
+  V2f v3NDC = fromScreenSpacetoNDC(rotatePointDegree(v3, rotation));
+
+  ColorNormolized colorNormolized = normolizeColor(color);
+
+  f32 vertices[] = {
+      v1NDC.x,
+      v1NDC.y,
+      0.0f,
+      colorNormolized.r,
+      colorNormolized.g,
+      colorNormolized.b,
+      colorNormolized.a,
+      v2NDC.x,
+      v2NDC.y,
+      0.0f,
+      colorNormolized.r,
+      colorNormolized.g,
+      colorNormolized.b,
+      colorNormolized.a,
+      v3NDC.x,
+      v3NDC.y,
+      0.0f,
+      colorNormolized.r,
+      colorNormolized.g,
+      colorNormolized.b,
+      colorNormolized.a,
+  };
+
+  glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+  glDrawArrays(GL_TRIANGLES, 0, 3);
+}
+
 // TODO: (omar) fix the inntersection of the lines
 internal void drawTrinagleOutline(V2f v1, V2f v2, V2f v3, f32 thickness,
                                   Color color) {
   drawLineEx(v1, v2, thickness, color);
   drawLineEx(v2, v3, thickness, color);
   drawLineEx(v3, v1, thickness, color);
+  drawCircle(v1, thickness / 2.0f, color);
+  drawCircle(v2, thickness / 2.0f, color);
+  drawCircle(v3, thickness / 2.0f, color);
 }
 
 internal void drawRectangle(Rectangle rect, Color color) {
@@ -401,30 +447,35 @@ internal void drawCircle(V2f center, f32 radius, Color color) {
   glDrawArrays(GL_TRIANGLE_FAN, 0, vertexCount);
 }
 
-internal void drawCircleOutline(V2f center, f32 radius, Color color) {
+internal void drawCircleOutline(V2f center, f32 radius, f32 thickness,
+                                Color color) {
   V2f centerNDC = fromScreenSpacetoNDC(center);
-  f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
-  f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
-  u32 segments = 500;
-  u32 vertexCount = segments + 2;
-  f32 vertices[7 * vertexCount];
-  for (i32 i = 0; i < segments + 1; i++) {
-    f32 theta = 2.0f * PI * f32(i) / f32(segments);
-    f32 x = centerNDC.x + radiusX * cosf(theta);
-    f32 y = centerNDC.y + radiusY * sinf(theta);
+  for (i32 i = 0; i < thickness; ++i) {
+    f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
+    f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
+    u32 segments = 5000;
+    u32 vertexCount = segments + 2;
+    f32 vertices[7 * vertexCount];
+    for (i32 i = 0; i < segments + 1; i++) {
+      f32 theta = 2.0f * PI * f32(i) / f32(segments);
+      f32 x = centerNDC.x + radiusX * cosf(theta);
+      f32 y = centerNDC.y + radiusY * sinf(theta);
 
-    u32 verticesIndex = i * 7;
-    vertices[verticesIndex] = x;
-    vertices[verticesIndex + 1] = y;
-    vertices[verticesIndex + 2] = 0.0f;
-    vertices[verticesIndex + 3] = NormalizeColorChannel(color.r);
-    vertices[verticesIndex + 4] = NormalizeColorChannel(color.g);
-    vertices[verticesIndex + 5] = NormalizeColorChannel(color.b);
-    vertices[verticesIndex + 6] = NormalizeColorChannel(color.a);
+      u32 verticesIndex = i * 7;
+      vertices[verticesIndex] = x;
+      vertices[verticesIndex + 1] = y;
+      vertices[verticesIndex + 2] = 0.0f;
+      vertices[verticesIndex + 3] = NormalizeColorChannel(color.r);
+      vertices[verticesIndex + 4] = NormalizeColorChannel(color.g);
+      vertices[verticesIndex + 5] = NormalizeColorChannel(color.b);
+      vertices[verticesIndex + 6] = NormalizeColorChannel(color.a);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * 7 * sizeof(f32),
+                    vertices);
+
+    glDrawArrays(GL_POINTS, 0, vertexCount);
+    radius--;
   }
-
-  glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * 7 * sizeof(f32), vertices);
-
-  glDrawArrays(GL_POINTS, 0, vertexCount);
 }
