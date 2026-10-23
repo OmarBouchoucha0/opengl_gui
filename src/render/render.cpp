@@ -20,50 +20,120 @@ internal void keyCallback(GLFWwindow *window, int key, int scancode, int action,
 }
 
 internal void initGpu() {
-  // NOTE: (omar) load shaders
-  GPU_STATE.vertexShaderSource =
-      "#version 330 core\n"
-      "layout (location = 0) in vec3 aPos;\n"
-      "layout (location = 1) in vec4 aColor;\n"
-      "out vec4 color;"
-      "void main()\n"
-      "{\n"
-      "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-      "   color = aColor;\n"
-      "}\0";
+  b32 ok;
 
-  GPU_STATE.fragmentShaderSource = "#version 330 core\n"
-                                   "out vec4 fragColor;\n"
-                                   "in vec4 color;\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "   fragColor = color;\n"
-                                   "}\n\0";
+  const char *shapeVS = "#version 330 core\n"
+                        "layout (location = 0) in vec3 aPos;\n"
+                        "layout (location = 1) in vec4 aColor;\n"
+                        "out vec4 color;\n"
+                        "void main()\n"
+                        "{\n"
+                        "  gl_Position = vec4(aPos, 1.0);\n"
+                        "  color = aColor;\n"
+                        "}\n";
+
+  const char *shapeFS = "#version 330 core\n"
+                        "out vec4 fragColor;\n"
+                        "in vec4 color;\n"
+                        "void main()\n"
+                        "{\n"
+                        "  fragColor = color;\n"
+                        "}\n";
+
+  const char *textVS = "#version 330 core\n"
+                       "layout (location = 0) in vec2 aPos;\n"
+                       "layout (location = 1) in vec2 aUV;\n"
+                       "layout (location = 2) in vec4 aColor;\n"
+                       "out vec2 uv;\n"
+                       "out vec4 color;\n"
+                       "void main()\n"
+                       "{\n"
+                       "  gl_Position = vec4(aPos, 0.0, 1.0);\n"
+                       "  uv = aUV;\n"
+                       "  color = aColor;\n"
+                       "}\n";
+
+  const char *textFS = "#version 330 core\n"
+                       "out vec4 fragColor;\n"
+                       "in vec2 uv;\n"
+                       "in vec4 color;\n"
+                       "uniform sampler2D atlas;\n"
+                       "void main()\n"
+                       "{\n"
+                       "  float coverage = texture(atlas, uv).r;\n"
+                       "  fragColor = vec4(color.rgb, color.a * coverage);\n"
+                       "}\n";
+
+  GPU_STATE.vertexShaderSource = shapeVS;
+  GPU_STATE.fragmentShaderSource = shapeFS;
 
   GPU_STATE.vertexShader = glCreateShader(GL_VERTEX_SHADER);
   glShaderSource(GPU_STATE.vertexShader, 1, &GPU_STATE.vertexShaderSource,
                  NULL);
   glCompileShader(GPU_STATE.vertexShader);
+  glGetShaderiv(GPU_STATE.vertexShader, GL_COMPILE_STATUS, &ok);
+  if (!ok) {
+    traceLog(ERROR, (char *)"Shape vertex shader error");
+  }
 
   GPU_STATE.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
   glShaderSource(GPU_STATE.fragmentShader, 1, &GPU_STATE.fragmentShaderSource,
                  NULL);
   glCompileShader(GPU_STATE.fragmentShader);
+  glGetShaderiv(GPU_STATE.fragmentShader, GL_COMPILE_STATUS, &ok);
+  if (!ok) {
+    traceLog(ERROR, (char *)"Shape fragment shader error");
+  }
 
   GPU_STATE.shaderProgram = glCreateProgram();
   glAttachShader(GPU_STATE.shaderProgram, GPU_STATE.vertexShader);
   glAttachShader(GPU_STATE.shaderProgram, GPU_STATE.fragmentShader);
   glLinkProgram(GPU_STATE.shaderProgram);
+  glGetProgramiv(GPU_STATE.shaderProgram, GL_LINK_STATUS, &ok);
+  if (!ok) {
+    traceLog(ERROR, (char *)"Shape program link error");
+  }
+
+  glDeleteShader(GPU_STATE.vertexShader);
+  glDeleteShader(GPU_STATE.fragmentShader);
+
+  GPU_STATE.vertexShaderSource = textVS;
+  GPU_STATE.fragmentShaderSource = textFS;
+
+  GPU_STATE.vertexShader = glCreateShader(GL_VERTEX_SHADER);
+  glShaderSource(GPU_STATE.vertexShader, 1, &GPU_STATE.vertexShaderSource,
+                 NULL);
+  glCompileShader(GPU_STATE.vertexShader);
+  glGetShaderiv(GPU_STATE.vertexShader, GL_COMPILE_STATUS, &ok);
+  if (!ok) {
+    traceLog(ERROR, (char *)"Text vertex shader error: %s\n");
+  }
+
+  GPU_STATE.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(GPU_STATE.fragmentShader, 1, &GPU_STATE.fragmentShaderSource,
+                 NULL);
+  glCompileShader(GPU_STATE.fragmentShader);
+  glGetShaderiv(GPU_STATE.fragmentShader, GL_COMPILE_STATUS, &ok);
+  if (!ok) {
+    traceLog(ERROR, (char *)"Text fragment shader error: %s\n");
+  }
+
+  GPU_STATE.textProgram = glCreateProgram();
+  glAttachShader(GPU_STATE.textProgram, GPU_STATE.vertexShader);
+  glAttachShader(GPU_STATE.textProgram, GPU_STATE.fragmentShader);
+  glLinkProgram(GPU_STATE.textProgram);
+  glGetProgramiv(GPU_STATE.textProgram, GL_LINK_STATUS, &ok);
+  if (!ok) {
+    traceLog(ERROR, (char *)"Text program link error: %s\n");
+  }
 
   glDeleteShader(GPU_STATE.vertexShader);
   glDeleteShader(GPU_STATE.fragmentShader);
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
   glEnable(GL_MULTISAMPLE);
 
-  // NOTE: (omar) generate buffers
   glGenVertexArrays(1, &GPU_STATE.VAO);
   glGenBuffers(1, &GPU_STATE.VBO);
   glGenBuffers(1, &GPU_STATE.EAO);
@@ -72,15 +142,32 @@ internal void initGpu() {
   glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.VBO);
   glBufferData(GL_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
 
-  // position (location 0)
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-
-  // color (location 1)
   glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 7 * sizeof(float),
                         (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 
+  glGenVertexArrays(1, &GPU_STATE.textVAO);
+  glGenBuffers(1, &GPU_STATE.textVBO);
+
+  glBindVertexArray(GPU_STATE.textVAO);
+  glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.textVBO);
+  glBufferData(GL_ARRAY_BUFFER, GPU_BUFFER_SIZE, NULL, GL_DYNAMIC_DRAW);
+
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(2 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(4 * sizeof(float)));
+  glEnableVertexAttribArray(2);
+
+  glUseProgram(GPU_STATE.textProgram);
+  glUniform1i(glGetUniformLocation(GPU_STATE.textProgram, "atlas"), 0);
+
+  glBindVertexArray(GPU_STATE.VAO);
   glUseProgram(GPU_STATE.shaderProgram);
 }
 
@@ -128,6 +215,9 @@ internal void destroyWindow(Window *window) {
   glDeleteBuffers(1, &GPU_STATE.VBO);
   glDeleteBuffers(1, &GPU_STATE.EAO);
   glDeleteProgram(GPU_STATE.shaderProgram);
+  glDeleteVertexArrays(1, &GPU_STATE.textVAO);
+  glDeleteBuffers(1, &GPU_STATE.textVBO);
+  glDeleteProgram(GPU_STATE.textProgram);
   glfwDestroyWindow(window);
   glfwTerminate();
 }
@@ -376,7 +466,6 @@ internal void drawRectangleOutline(Rectangle rect, f32 thickness, Color color) {
 }
 
 internal void drawPolygon(V2f center, u32 segments, f32 radius, Color color) {
-
   V2f centerNDC = fromScreenSpacetoNDC(center);
   f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
   f32 radiusY = (radius / WINDOW_HEIGHT) * 2.0f;
@@ -478,4 +567,85 @@ internal void drawCircleOutline(V2f center, f32 radius, f32 thickness,
     glDrawArrays(GL_POINTS, 0, vertexCount);
     radius--;
   }
+}
+
+internal Font loadFont(const char *path, f32 pixelHeight) {
+  String p = fromCStringtoString((char *)path);
+  Font font = {};
+  font.size = pixelHeight;
+
+  FILE *f = fopen(p.data, "rb");
+  Assert(f != NULL);
+  fseek(f, 0, SEEK_END);
+  u64 fileSize = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  const u32 atlasW = 512;
+  const u32 atlasH = 512;
+  u32 size = fileSize + atlasH * atlasW;
+  u8 buffer[size];
+  Arena localArena = arenaInit(buffer, size);
+
+  u8 *ttf = (u8 *)arenaAlloc(&localArena, fileSize);
+  fread(ttf, 1, fileSize, f);
+  fclose(f);
+
+  u8 *bitmap = (u8 *)arenaAlloc(&localArena, atlasW * atlasH);
+  int result = stbtt_BakeFontBitmap(ttf, 0, pixelHeight, bitmap, atlasW, atlasH,
+                                    32, 96, font.glyphs);
+  Assert(result > 0); // negative means the atlas was too small
+
+  glGenTextures(1, &font.texture);
+  glBindTexture(GL_TEXTURE_2D, font.texture);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, atlasW, atlasH, 0, GL_RED,
+               GL_UNSIGNED_BYTE, bitmap);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  return font;
+}
+
+internal void drawText(V2f pos, const char *text, Font *font, Color color) {
+  String t = fromCStringtoString((char *)text);
+  u32 size = t.size * 6 * 8 * sizeof(f32);
+  u8 buffer[size];
+  Arena localArena = arenaInit(buffer, size);
+  f32 *v = (f32 *)arenaAlloc(&localArena, size);
+  Assert(v != NULL);
+  ColorNormolized c = normolizeColor(color);
+  u32 count = 0;
+
+  for (u32 i = 0; i < t.size; ++i) {
+    if (t.data[i] < 32 || t.data[i] > 126)
+      continue;
+
+    stbtt_aligned_quad q;
+    stbtt_GetBakedQuad(font->glyphs, 512, 512, t.data[i] - 32, &pos.x, &pos.y,
+                       &q, 1);
+
+    V2f tl = fromScreenSpacetoNDC({q.x0, q.y0});
+    V2f br = fromScreenSpacetoNDC({q.x1, q.y1});
+
+    f32 quad[6 * 8] = {
+        tl.x, tl.y, q.s0, q.t0, c.r,  c.g,  c.b,  c.a,  br.x, tl.y, q.s1, q.t0,
+        c.r,  c.g,  c.b,  c.a,  br.x, br.y, q.s1, q.t1, c.r,  c.g,  c.b,  c.a,
+        tl.x, tl.y, q.s0, q.t0, c.r,  c.g,  c.b,  c.a,  br.x, br.y, q.s1, q.t1,
+        c.r,  c.g,  c.b,  c.a,  tl.x, br.y, q.s0, q.t1, c.r,  c.g,  c.b,  c.a,
+    };
+    memcpy(v + count * 8, quad, sizeof(quad));
+    count += 6;
+  }
+
+  glUseProgram(GPU_STATE.textProgram);
+  glBindVertexArray(GPU_STATE.textVAO);
+  glBindTexture(GL_TEXTURE_2D, font->texture);
+  glBindBuffer(GL_ARRAY_BUFFER, GPU_STATE.textVBO);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, count * 8 * sizeof(f32), v);
+  glDrawArrays(GL_TRIANGLES, 0, count);
+
+  glUseProgram(GPU_STATE.shaderProgram);
+  glBindVertexArray(GPU_STATE.VAO);
 }

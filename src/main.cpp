@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <cstdint>
 #include <time.h>
+#include "base/base_strings.cpp"
 #include "base/base_types.cpp"
 #include "base/base_math.h"
 #include "base/base_log.cpp"
@@ -36,8 +37,8 @@ void lockFps(u32 fps, u64 frequency, u64 *startCounter, f32 *dt) {
 }
 
 int main(void) {
-  i32 windowWidth = 1300;
-  i32 windowHeight = 700;
+  i32 windowWidth = 800;
+  i32 windowHeight = 450;
   Window *window = createWindow(windowWidth, windowHeight, "open gl");
 
   Color backgroundColor = {
@@ -131,6 +132,7 @@ int main(void) {
   f32 rot = 0.0f;
   f32 dt = 0.0f;
   char infoBuffer[Kilobytes(10)];
+  Font font = loadFont("/home/omar/Work/opengl/assets/segoeui.ttf", 32);
 
   while (!glfwWindowShouldClose(window)) {
     glfwSwapBuffers(window);
@@ -138,6 +140,7 @@ int main(void) {
     clearBackground(backgroundColor);
     rot += 1.0f;
 
+    drawText(center, "hello world!", &font, red);
     lockFps(fps, frequency, &startCounter, &dt);
     // snprintf(infoBuffer, sizeof(infoBuffer), "DELTA TIME = %.5fs", dt);
     // traceLog(DEBUG, infoBuffer);

@@ -7,8 +7,13 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
 #include "../base/base_types.cpp"
 #include "../base/base_math.cpp"
+#include "../base/base_arena.cpp"
+#include "../base/base_strings.cpp"
 #include "../base/base_log.cpp"
 
 #define GPU_BUFFER_SIZE Megabytes(1)
@@ -28,6 +33,12 @@ struct ColorNormolized {
   f32 a;
 };
 
+struct Font {
+  u32 texture;
+  stbtt_bakedchar glyphs[96]; // ASCII 32..126
+  f32 size;
+};
+
 struct GpuState {
   const char *vertexShaderSource;
   i32 vertexShader;
@@ -36,10 +47,14 @@ struct GpuState {
   i32 fragmentShader;
 
   u32 shaderProgram;
+  u32 textProgram;
   u32 VAO;
   u32 VBO;
+  u32 textVAO;
+  u32 textVBO;
   u32 EAO;
 };
+
 typedef GLFWwindow Window;
 
 global_variable GpuState GPU_STATE = {};
@@ -65,5 +80,7 @@ internal void drawPolygon(V2f center, u32 segments, f32 radius, Color color);
 internal void drawCircle(V2f center, f32 radius, Color color);
 internal void drawCircleOutline(V2f center, f32 radius, f32 thickness,
                                 Color color);
+internal Font loadFont(const char *path, f32 pixelHeight);
+internal void drawText(V2f pos, const char *text, Font *font, Color color);
 
 #endif // RENDER_H
