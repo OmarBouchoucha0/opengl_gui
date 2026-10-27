@@ -13,7 +13,7 @@ Arena arenaInit(u8 *buffer, u32 size) {
   return arena;
 }
 
-internal void arenaReset(Arena *arena) { arena->offset = 0; }
+internal void arenaFreeAll(Arena *arena) { arena->offset = 0; }
 
 b32 isPowerOfTwo(u32 x) { return (x & (x - 1)) == 0; }
 
@@ -27,14 +27,11 @@ void *alignForward(void *mem, u64 alignment) {
 }
 
 internal void *arenaAllocAlign(Arena *arena, u64 memSize, u64 alignment) {
+  Assert(arena->offset + memSize <= arena->size);
   void *mem_alloc_start = arena->buffer + arena->offset;
   mem_alloc_start = alignForward(mem_alloc_start, alignment);
-  u32 new_offset = (u64)(mem_alloc_start - (void *)arena->buffer);
-  if (new_offset > arena->size) {
-    return NULL;
-  }
   memset(mem_alloc_start, 0, memSize);
-  arena->offset = new_offset;
+  arena->offset += memSize;
   return mem_alloc_start;
 }
 

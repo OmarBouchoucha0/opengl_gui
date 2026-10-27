@@ -12,7 +12,7 @@
 #include "base/base_log.cpp"
 #include "base/base_arena.cpp"
 #include "render/render.cpp"
-#include "render/render.h"
+#include "gui/gui.cpp"
 
 void lockFps(u32 fps, u64 frequency, u64 *startCounter, f32 *dt) {
   u64 endCounter = glfwGetTimerValue();
@@ -39,7 +39,7 @@ void lockFps(u32 fps, u64 frequency, u64 *startCounter, f32 *dt) {
 int main(void) {
   i32 windowWidth = 800;
   i32 windowHeight = 450;
-  Window *window = createWindow(windowWidth, windowHeight, "open gl");
+  Window window = createWindow(windowWidth, windowHeight, "open gl");
 
   Color backgroundColor = {
       0x18,
@@ -132,20 +132,23 @@ int main(void) {
   f32 rot = 0.0f;
   f32 dt = 0.0f;
   char infoBuffer[Kilobytes(10)];
-  Font font = loadFont("/home/omar/Work/opengl/assets/segoeui.ttf", 32);
+  Font font =
+      loadFont("/home/omar/Work/opengl/assets/JetBrainsMono-Regular.ttf", 32);
 
-  while (!glfwWindowShouldClose(window)) {
-    glfwSwapBuffers(window);
-    glfwPollEvents();
+  while (!windowShouldClose()) {
     clearBackground(backgroundColor);
     rot += 1.0f;
 
-    drawText(center, "hello world!", &font, red);
+    // drawText(center, "hello world!", &font, red);
+
+    guiButton(rect, "hello", &font, rectColor, red);
     lockFps(fps, frequency, &startCounter, &dt);
     // snprintf(infoBuffer, sizeof(infoBuffer), "DELTA TIME = %.5fs", dt);
     // traceLog(DEBUG, infoBuffer);
+
+    handleEvents();
   }
 
-  destroyWindow(window);
+  destroyWindow();
   exit(EXIT_SUCCESS);
 }
