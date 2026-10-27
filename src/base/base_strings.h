@@ -12,8 +12,8 @@ struct String {
   u32 size;
 };
 
-internal u32 cStringSize(char *cString);
-internal String fromCStringtoString(char *cString);
+internal u32 cStringSize(const char *cString);
+internal String fromCStringtoString(const char *cString);
 internal void StringChopRight(String *s, u32 count);
 internal void StringChopLeft(String *s, u32 count);
 internal void StringTrimRight(String *s);

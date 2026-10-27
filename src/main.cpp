@@ -105,10 +105,10 @@ int main(void) {
   };
 
   Rectangle rect = {
-      .x = windowWidth / 3.0f,
-      .y = windowHeight / 3.0f,
-      .width = 50.0f,
-      .height = 50.0f,
+      .x = windowWidth / 5.0f,
+      .y = windowHeight / 4.0f,
+      .width = 200.0f,
+      .height = 100.0f,
   };
 
   V2f center = {
@@ -132,21 +132,44 @@ int main(void) {
   f32 rot = 0.0f;
   f32 dt = 0.0f;
   char infoBuffer[Kilobytes(10)];
+  char infoBuffer2[Kilobytes(10)];
   Font font =
       loadFont("/home/omar/Work/opengl/assets/JetBrainsMono-Regular.ttf", 32);
 
+  Color buttonColor = blue;
+  Color textColor = backgroundColor;
+  i32 i = 0;
+  snprintf(infoBuffer, sizeof(infoBuffer), "IDLE");
   while (!windowShouldClose()) {
+
     clearBackground(backgroundColor);
     rot += 1.0f;
 
-    // drawText(center, "hello world!", &font, red);
-
-    guiButton(rect, "hello", &font, rectColor, red);
+    snprintf(infoBuffer2, sizeof(infoBuffer2), "i : %d", i);
+    drawText(center, infoBuffer2, &font, red);
+    switch (guiButton(rect, infoBuffer, &font, buttonColor, textColor)) {
+    case BUTTON_IDLE: {
+      snprintf(infoBuffer, sizeof(infoBuffer), "IDLE");
+    } break;
+    case BUTTON_HOVERED: {
+      snprintf(infoBuffer, sizeof(infoBuffer), "HOVERED");
+    } break;
+    case BUTTON_DOWN: {
+      snprintf(infoBuffer, sizeof(infoBuffer), "DOWN");
+    } break;
+    case BUTTON_RELEASED: {
+      i++;
+    } break;
+    }
     lockFps(fps, frequency, &startCounter, &dt);
     // snprintf(infoBuffer, sizeof(infoBuffer), "DELTA TIME = %.5fs", dt);
     // traceLog(DEBUG, infoBuffer);
 
+    // snprintf(infoBuffer, sizeof(infoBuffer), "MOUSE POS = {%.5f|%.5f}",
+    //          MOUSE_POSITION.x, MOUSE_POSITION.y);
+    // traceLog(DEBUG, infoBuffer);
     handleEvents();
+    MOUSE_LEFT_BUTTON_STATE = MOUSE_IDLE;
   }
 
   destroyWindow();

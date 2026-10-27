@@ -13,5 +13,5 @@ enum LogLevel {
   ERROR,
 };
 
-internal void traceLog(LogLevel logLevel, char *msg);
+internal void traceLog(LogLevel logLevel, const char *msg);
 #endif // BASE_LOG_H

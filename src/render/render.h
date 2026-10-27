@@ -57,11 +57,19 @@ struct GpuState {
 
 typedef GLFWwindow *Window;
 
+enum MouseState {
+  MOUSE_IDLE,
+  MOUSE_DOWN,
+  MOUSE_RELEASED,
+};
+
 global_variable GpuState GPU_STATE;
 global_variable Window WINDOW;
 global_variable u32 WINDOW_WIDTH;
 global_variable u32 WINDOW_HEIGHT;
 global_variable V2f MOUSE_POSITION;
+global_variable MouseState MOUSE_LEFT_BUTTON_STATE;
+global_variable MouseState MOUSE_RIGHT_BUTTON_STATE;
 
 internal ColorNormolized normolizeColor(Color color);
 internal Window createWindow(u32 windowWidth, u32 windowHeight,
@@ -89,5 +97,8 @@ internal void drawCircleOutline(V2f center, f32 radius, f32 thickness,
 internal Font loadFont(const char *path, f32 pixelHeight);
 internal void drawText(V2f pos, const char *text, Font *font, Color color);
 internal f32 getTextWidth(const char *text, Font *font);
+internal V2f getMousePosition();
+internal b32 isMouseButtonDown(i32 button_key);
+internal b32 isMouseButtonReleased(i32 button_key);
 
 #endif // RENDER_H
