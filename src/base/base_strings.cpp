@@ -1,7 +1,7 @@
 #pragma once
 #include "base_strings.h"
 
-internal u32 cStringSize(char *cString) {
+internal u32 cStringSize(const char *cString) {
   char c = *cString;
   u32 count = 0;
   while (c != '\0') {
@@ -12,9 +12,9 @@ internal u32 cStringSize(char *cString) {
   return count;
 }
 
-internal String fromCStringtoString(char *cString) {
+internal String fromCStringtoString(const char *cString) {
   return (String){
-      .data = cString,
+      .data = (char *)cString,
       .size = cStringSize(cString),
   };
 }

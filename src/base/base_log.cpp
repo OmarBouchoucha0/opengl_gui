@@ -1,9 +1,9 @@
 #pragma once
 #include "base_log.h"
 
-internal void traceLog(LogLevel logLevel, char *msg) {
+internal void traceLog(LogLevel logLevel, const char *msg) {
   String msgSlice = {};
-  msgSlice.data = msg;
+  msgSlice.data = (char *)msg;
   msgSlice.size = cStringSize(msg);
 
   switch (logLevel) {

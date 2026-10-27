@@ -10,7 +10,7 @@ internal ColorNormolized normolizeColor(Color color) {
 }
 
 internal void errorCallback(int error, const char *description) {
-  traceLog(ERROR, (char *)description);
+  traceLog(ERROR, description);
 }
 
 internal void keyCallback(GLFWwindow *window, int key, int scancode, int action,
@@ -22,6 +22,62 @@ internal void keyCallback(GLFWwindow *window, int key, int scancode, int action,
 void cursorPositionCallback(GLFWwindow *window, double xpos, double ypos) {
   MOUSE_POSITION.x = xpos;
   MOUSE_POSITION.y = ypos;
+}
+
+void mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
+  if (button == GLFW_MOUSE_BUTTON_LEFT) {
+    if (action == GLFW_PRESS) {
+      MOUSE_LEFT_BUTTON_STATE = MOUSE_DOWN;
+    } else if (action == GLFW_RELEASE) {
+      MOUSE_LEFT_BUTTON_STATE = MOUSE_RELEASED;
+    }
+  }
+
+  if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+    if (action == GLFW_PRESS) {
+      MOUSE_RIGHT_BUTTON_STATE = MOUSE_DOWN;
+    } else if (action == GLFW_RELEASE) {
+      MOUSE_RIGHT_BUTTON_STATE = MOUSE_RELEASED;
+    }
+  }
+}
+
+internal V2f getMousePosition() { return MOUSE_POSITION; }
+
+internal b32 isMouseButtonDown(i32 button_key) {
+  switch (button_key) {
+  case 0: {
+    if (MOUSE_LEFT_BUTTON_STATE == MOUSE_DOWN) {
+      return true;
+    }
+    return false;
+  } break;
+  case 1: {
+    if (MOUSE_RIGHT_BUTTON_STATE == MOUSE_DOWN) {
+      return true;
+    }
+    return false;
+  } break;
+  }
+  return false;
+}
+
+internal b32 isMouseButtonReleased(i32 button_key) {
+  switch (button_key) {
+  case 0: {
+    if (MOUSE_LEFT_BUTTON_STATE == MOUSE_RELEASED) {
+      return true;
+    }
+    return false;
+  } break;
+  case 1: {
+    if (MOUSE_RIGHT_BUTTON_STATE == MOUSE_RELEASED) {
+      return true;
+    }
+    return false;
+  } break;
+  }
+  return false;
 }
 
 internal void initGpu() {
@@ -78,7 +134,7 @@ internal void initGpu() {
   glCompileShader(GPU_STATE.vertexShader);
   glGetShaderiv(GPU_STATE.vertexShader, GL_COMPILE_STATUS, &ok);
   if (!ok) {
-    traceLog(ERROR, (char *)"Shape vertex shader error");
+    traceLog(ERROR, "Shape vertex shader error");
   }
 
   GPU_STATE.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -87,7 +143,7 @@ internal void initGpu() {
   glCompileShader(GPU_STATE.fragmentShader);
   glGetShaderiv(GPU_STATE.fragmentShader, GL_COMPILE_STATUS, &ok);
   if (!ok) {
-    traceLog(ERROR, (char *)"Shape fragment shader error");
+    traceLog(ERROR, "Shape fragment shader error");
   }
 
   GPU_STATE.shaderProgram = glCreateProgram();
@@ -96,7 +152,7 @@ internal void initGpu() {
   glLinkProgram(GPU_STATE.shaderProgram);
   glGetProgramiv(GPU_STATE.shaderProgram, GL_LINK_STATUS, &ok);
   if (!ok) {
-    traceLog(ERROR, (char *)"Shape program link error");
+    traceLog(ERROR, "Shape program link error");
   }
 
   glDeleteShader(GPU_STATE.vertexShader);
@@ -111,7 +167,7 @@ internal void initGpu() {
   glCompileShader(GPU_STATE.vertexShader);
   glGetShaderiv(GPU_STATE.vertexShader, GL_COMPILE_STATUS, &ok);
   if (!ok) {
-    traceLog(ERROR, (char *)"Text vertex shader error: %s\n");
+    traceLog(ERROR, "Text vertex shader error: %s\n");
   }
 
   GPU_STATE.fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -120,7 +176,7 @@ internal void initGpu() {
   glCompileShader(GPU_STATE.fragmentShader);
   glGetShaderiv(GPU_STATE.fragmentShader, GL_COMPILE_STATUS, &ok);
   if (!ok) {
-    traceLog(ERROR, (char *)"Text fragment shader error: %s\n");
+    traceLog(ERROR, "Text fragment shader error: %s\n");
   }
 
   GPU_STATE.textProgram = glCreateProgram();
@@ -129,7 +185,7 @@ internal void initGpu() {
   glLinkProgram(GPU_STATE.textProgram);
   glGetProgramiv(GPU_STATE.textProgram, GL_LINK_STATUS, &ok);
   if (!ok) {
-    traceLog(ERROR, (char *)"Text program link error: %s\n");
+    traceLog(ERROR, "Text program link error: %s\n");
   }
 
   glDeleteShader(GPU_STATE.vertexShader);
@@ -179,8 +235,8 @@ internal void initGpu() {
 internal Window createWindow(u32 windowWidth, u32 windowHeight,
                              const char *title) {
   glfwSetErrorCallback(errorCallback);
-  // NOTE: (omar) forcing x11 just to mimic raylib window behaviour since thats
-  // what i prefer
+  // NOTE: (omar) forcing x11 just to mimic raylib window behaviour since
+  // thats what i prefer
   glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
   if (!glfwInit())
     exit(EXIT_FAILURE);
@@ -207,12 +263,15 @@ internal Window createWindow(u32 windowWidth, u32 windowHeight,
   glfwSetWindowPos(window, monitorX + (mode->width - (i32)windowWidth) / 2,
                    monitorY + (mode->height - (i32)windowHeight) / 2);
   glfwSetKeyCallback(window, keyCallback);
+  glfwSetCursorPosCallback(window, cursorPositionCallback);
+  glfwSetMouseButtonCallback(window, mouseButtonCallback);
   glfwMakeContextCurrent(window);
 
   gladLoadGL();
   glViewport(0, 0, windowWidth, windowHeight);
   initGpu();
   WINDOW = window;
+
   return window;
 }
 
@@ -231,6 +290,8 @@ internal void destroyWindow() {
 }
 
 internal void handleEvents() {
+  MOUSE_LEFT_BUTTON_STATE = MOUSE_IDLE;
+  MOUSE_RIGHT_BUTTON_STATE = MOUSE_IDLE;
   glfwSwapBuffers(WINDOW);
   glfwPollEvents();
 }
@@ -588,7 +649,7 @@ internal void drawCircleOutline(V2f center, f32 radius, f32 thickness,
 }
 
 internal Font loadFont(const char *path, f32 pixelHeight) {
-  String p = fromCStringtoString((char *)path);
+  String p = fromCStringtoString(path);
   Font font = {};
   font.size = pixelHeight;
 
@@ -627,7 +688,7 @@ internal Font loadFont(const char *path, f32 pixelHeight) {
 }
 
 internal void drawText(V2f pos, const char *text, Font *font, Color color) {
-  String t = fromCStringtoString((char *)text);
+  String t = fromCStringtoString(text);
   u32 size = t.size * 6 * 8 * sizeof(f32);
   u8 buffer[size];
   Arena localArena = arenaInit(buffer, size);

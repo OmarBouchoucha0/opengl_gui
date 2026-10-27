@@ -6,10 +6,10 @@
 #include "../render/render.cpp"
 
 enum ButtonState {
-  IDLE,
-  HOVERED,
-  DOWN,
-  RELEASED,
+  BUTTON_IDLE,
+  BUTTON_HOVERED,
+  BUTTON_DOWN,
+  BUTTON_RELEASED,
 };
 
 internal ButtonState guiButton(Rectangle button, const char *text, Font *font,
