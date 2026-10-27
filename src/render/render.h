@@ -55,16 +55,20 @@ struct GpuState {
   u32 EAO;
 };
 
-typedef GLFWwindow Window;
+typedef GLFWwindow *Window;
 
-global_variable GpuState GPU_STATE = {};
+global_variable GpuState GPU_STATE;
+global_variable Window WINDOW;
 global_variable u32 WINDOW_WIDTH;
 global_variable u32 WINDOW_HEIGHT;
+global_variable V2f MOUSE_POSITION;
 
 internal ColorNormolized normolizeColor(Color color);
-internal Window *createWindow(u32 windowWidth, u32 windowHeight,
-                              const char *title);
-internal void destroyWindow(Window *window);
+internal Window createWindow(u32 windowWidth, u32 windowHeight,
+                             const char *title);
+internal b32 windowShouldClose();
+internal void destroyWindow();
+internal void handleEvents();
 internal void clearBackground(Color color);
 internal void drawLine(V2f start, V2f end, Color color);
 internal void drawLineEx(V2f start, V2f end, f32 thickness, Color color);
@@ -76,11 +80,14 @@ internal void drawRectangle(Rectangle rect, Color color);
 internal void drawRectangleEx(Rectangle rect, V2f origin, f32 rotation,
                               Color color);
 internal void drawRectangleOutline(Rectangle rect, f32 thickness, Color color);
+internal void drawRectangleRounded(Rectangle rect, V2f origin, f32 rotation,
+                                   float roundness, Color color);
 internal void drawPolygon(V2f center, u32 segments, f32 radius, Color color);
 internal void drawCircle(V2f center, f32 radius, Color color);
 internal void drawCircleOutline(V2f center, f32 radius, f32 thickness,
                                 Color color);
 internal Font loadFont(const char *path, f32 pixelHeight);
 internal void drawText(V2f pos, const char *text, Font *font, Color color);
+internal f32 getTextWidth(const char *text, Font *font);
 
 #endif // RENDER_H

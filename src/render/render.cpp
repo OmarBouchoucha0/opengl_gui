@@ -19,6 +19,11 @@ internal void keyCallback(GLFWwindow *window, int key, int scancode, int action,
     glfwSetWindowShouldClose(window, GLFW_TRUE);
 }
 
+void cursorPositionCallback(GLFWwindow *window, double xpos, double ypos) {
+  MOUSE_POSITION.x = xpos;
+  MOUSE_POSITION.y = ypos;
+}
+
 internal void initGpu() {
   b32 ok;
 
@@ -171,8 +176,8 @@ internal void initGpu() {
   glUseProgram(GPU_STATE.shaderProgram);
 }
 
-internal Window *createWindow(u32 windowWidth, u32 windowHeight,
-                              const char *title) {
+internal Window createWindow(u32 windowWidth, u32 windowHeight,
+                             const char *title) {
   glfwSetErrorCallback(errorCallback);
   // NOTE: (omar) forcing x11 just to mimic raylib window behaviour since thats
   // what i prefer
@@ -188,8 +193,8 @@ internal Window *createWindow(u32 windowWidth, u32 windowHeight,
 
   WINDOW_WIDTH = windowWidth;
   WINDOW_HEIGHT = windowHeight;
-  Window *window = glfwCreateWindow(windowWidth, windowHeight,
-                                    "graphics library", NULL, NULL);
+  Window window = glfwCreateWindow(windowWidth, windowHeight,
+                                   "graphics library", NULL, NULL);
   if (!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);
@@ -207,10 +212,13 @@ internal Window *createWindow(u32 windowWidth, u32 windowHeight,
   gladLoadGL();
   glViewport(0, 0, windowWidth, windowHeight);
   initGpu();
+  WINDOW = window;
   return window;
 }
 
-internal void destroyWindow(Window *window) {
+internal b32 windowShouldClose() { return glfwWindowShouldClose(WINDOW); }
+
+internal void destroyWindow() {
   glDeleteVertexArrays(1, &GPU_STATE.VAO);
   glDeleteBuffers(1, &GPU_STATE.VBO);
   glDeleteBuffers(1, &GPU_STATE.EAO);
@@ -218,8 +226,13 @@ internal void destroyWindow(Window *window) {
   glDeleteVertexArrays(1, &GPU_STATE.textVAO);
   glDeleteBuffers(1, &GPU_STATE.textVBO);
   glDeleteProgram(GPU_STATE.textProgram);
-  glfwDestroyWindow(window);
+  glfwDestroyWindow(WINDOW);
   glfwTerminate();
+}
+
+internal void handleEvents() {
+  glfwSwapBuffers(WINDOW);
+  glfwPollEvents();
 }
 
 internal void clearBackground(Color color) {
@@ -465,6 +478,11 @@ internal void drawRectangleOutline(Rectangle rect, f32 thickness, Color color) {
   drawRectangle(right, color);
 }
 
+internal void drawRectangleRounded(Rectangle rect, V2f origin, f32 rotation,
+                                   float roundness, Color color) {
+  return;
+}
+
 internal void drawPolygon(V2f center, u32 segments, f32 radius, Color color) {
   V2f centerNDC = fromScreenSpacetoNDC(center);
   f32 radiusX = (radius / WINDOW_WIDTH) * 2.0f;
@@ -648,4 +666,15 @@ internal void drawText(V2f pos, const char *text, Font *font, Color color) {
 
   glUseProgram(GPU_STATE.shaderProgram);
   glBindVertexArray(GPU_STATE.VAO);
+}
+
+internal f32 getTextWidth(const char *text, Font *font) {
+  f32 width = 0.0f;
+  for (i32 i = 0; text[i] != '\0'; ++i) {
+    u8 c = (u8)text[i];
+    if (c >= 32 && c < 128) {
+      width += font->glyphs[c - 32].xadvance;
+    }
+  }
+  return width;
 }
