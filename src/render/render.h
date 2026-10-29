@@ -9,6 +9,7 @@
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
+#include <string.h>
 
 #include "../base/base_types.cpp"
 #include "../base/base_math.cpp"
@@ -37,6 +38,9 @@ struct Font {
   u32 texture;
   stbtt_bakedchar glyphs[96]; // ASCII 32..126
   f32 size;
+  f32 ascent;
+  f32 descent;
+  f32 lineHeight;
 };
 
 struct GpuState {
@@ -57,10 +61,14 @@ struct GpuState {
 
 typedef GLFWwindow *Window;
 
-enum MouseState {
-  MOUSE_IDLE,
-  MOUSE_DOWN,
-  MOUSE_RELEASED,
+struct Input {
+  b32 keyDown[GLFW_KEY_LAST + 1];
+  b32 keyPrev[GLFW_KEY_LAST + 1];
+  b32 mouseDown[8];
+  b32 mousePrev[8];
+  V2f mousePos;
+  V2f mouseDelta;
+  f32 scrollDelta;
 };
 
 global_variable GpuState GPU_STATE;
@@ -68,8 +76,7 @@ global_variable Window WINDOW;
 global_variable u32 WINDOW_WIDTH;
 global_variable u32 WINDOW_HEIGHT;
 global_variable V2f MOUSE_POSITION;
-global_variable MouseState MOUSE_LEFT_BUTTON_STATE;
-global_variable MouseState MOUSE_RIGHT_BUTTON_STATE;
+global_variable Input INPUT;
 
 internal ColorNormolized normolizeColor(Color color);
 internal Window createWindow(u32 windowWidth, u32 windowHeight,
@@ -98,7 +105,11 @@ internal Font loadFont(const char *path, f32 pixelHeight);
 internal void drawText(V2f pos, const char *text, Font *font, Color color);
 internal f32 getTextWidth(const char *text, Font *font);
 internal V2f getMousePosition();
-internal b32 isMouseButtonDown(i32 button_key);
-internal b32 isMouseButtonReleased(i32 button_key);
+internal b32 isMouseButtonDown(i32 key);
+internal b32 isMouseButtonPressed(i32 key);
+internal b32 isMouseButtonReleased(i32 key);
+internal b32 isKeyButtonDown(i32 key);
+internal b32 isKeyButtonPressed(i32 key);
+internal b32 isKeyButtonReleased(i32 key);
 
 #endif // RENDER_H

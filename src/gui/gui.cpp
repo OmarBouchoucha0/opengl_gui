@@ -9,25 +9,55 @@ internal b32 checkCollisionBetweenMouseAndRect(Rectangle rect) {
   return false;
 }
 
-internal ButtonState guiButton(Rectangle button, const char *text, Font *font,
-                               Color buttonColor, Color textColor) {
+// internal ButtonState guiButton(Rectangle button, const char *text, Font
+// *font,
+//                                Color buttonColor, Color textColor) {
+//
+//   f32 textWidth = getTextWidth(text, font);
+//   ButtonState buttonState = BUTTON_IDLE;
+//   if (checkCollisionBetweenMouseAndRect(button)) {
+//     if (isMouseButtonPressed(0)) {
+//       buttonState = BUTTON_PRESSED;
+//     } else {
+//       buttonState = BUTTON_HOVERED;
+//     }
+//   }
+//   V2f textPos = {
+//       .x = button.x + button.width / 2 - textWidth / 2,
+//       .y = button.y + button.height / 2,
+//   };
+//   drawRectangle(button, buttonColor);
+//   drawText(textPos, text, font, textColor);
+//   return buttonState;
+// }
 
+internal ButtonState guiButton(f32 posx, f32 posy, const char *text,
+                               Font *font) {
   f32 textWidth = getTextWidth(text, font);
   ButtonState buttonState = BUTTON_IDLE;
+  Rectangle button = {
+      .x = posx,
+      .y = posy,
+      .width = BUTTON_WIDTH,
+      .height = BUTTON_HEIGHT,
+  };
+  V2f textPos = {
+      .x = button.x + (button.width - textWidth) / 2,
+      .y = button.y + (button.height + font->ascent + font->descent) / 2,
+  };
+
   if (checkCollisionBetweenMouseAndRect(button)) {
-    if (isMouseButtonDown(0)) {
-      buttonState = BUTTON_DOWN;
-    } else if (isMouseButtonReleased(0)) {
-      buttonState = BUTTON_RELEASED;
+    if (isMouseButtonPressed(0)) {
+      buttonState = BUTTON_PRESSED;
+      drawRectangle(button, PRIMARY_PRESSED);
     } else {
       buttonState = BUTTON_HOVERED;
+      drawRectangle(button, PRIMARY_HOVER);
     }
+  } else {
+    drawRectangle(button, PRIMARY);
   }
-  V2f textPos = {
-      .x = button.x + button.width / 2 - textWidth / 2,
-      .y = button.y + button.height / 2,
-  };
-  drawRectangle(button, buttonColor);
-  drawText(textPos, text, font, textColor);
+  drawRectangleOutline(button, 5.0f, BORDER);
+  drawText(textPos, text, font, ON_PRIMARY);
   return buttonState;
 }
