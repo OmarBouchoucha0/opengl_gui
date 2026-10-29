@@ -20,64 +20,27 @@ internal void keyCallback(GLFWwindow *window, int key, int scancode, int action,
 }
 
 void cursorPositionCallback(GLFWwindow *window, double xpos, double ypos) {
-  MOUSE_POSITION.x = xpos;
-  MOUSE_POSITION.y = ypos;
+  INPUT.mousePos.x = xpos;
+  INPUT.mousePos.y = ypos;
 }
 
 void mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
-  if (button == GLFW_MOUSE_BUTTON_LEFT) {
-    if (action == GLFW_PRESS) {
-      MOUSE_LEFT_BUTTON_STATE = MOUSE_DOWN;
-    } else if (action == GLFW_RELEASE) {
-      MOUSE_LEFT_BUTTON_STATE = MOUSE_RELEASED;
-    }
-  }
-
-  if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-    if (action == GLFW_PRESS) {
-      MOUSE_RIGHT_BUTTON_STATE = MOUSE_DOWN;
-    } else if (action == GLFW_RELEASE) {
-      MOUSE_RIGHT_BUTTON_STATE = MOUSE_RELEASED;
-    }
-  }
+  if (button < 0 || button > GLFW_MOUSE_BUTTON_LAST)
+    return;
+  INPUT.mouseDown[button] = (action == GLFW_PRESS);
 }
 
-internal V2f getMousePosition() { return MOUSE_POSITION; }
+internal V2f getMousePosition() { return INPUT.mousePos; }
 
+internal b32 isMouseButtonPressed(i32 button_key) {
+  return INPUT.mouseDown[button_key] == 1 && INPUT.mousePrev[button_key] == 0;
+}
 internal b32 isMouseButtonDown(i32 button_key) {
-  switch (button_key) {
-  case 0: {
-    if (MOUSE_LEFT_BUTTON_STATE == MOUSE_DOWN) {
-      return true;
-    }
-    return false;
-  } break;
-  case 1: {
-    if (MOUSE_RIGHT_BUTTON_STATE == MOUSE_DOWN) {
-      return true;
-    }
-    return false;
-  } break;
-  }
-  return false;
+  return INPUT.mouseDown[button_key] && INPUT.mousePrev[button_key];
 }
 
 internal b32 isMouseButtonReleased(i32 button_key) {
-  switch (button_key) {
-  case 0: {
-    if (MOUSE_LEFT_BUTTON_STATE == MOUSE_RELEASED) {
-      return true;
-    }
-    return false;
-  } break;
-  case 1: {
-    if (MOUSE_RIGHT_BUTTON_STATE == MOUSE_RELEASED) {
-      return true;
-    }
-    return false;
-  } break;
-  }
-  return false;
+  return INPUT.mouseDown[button_key] == 0 && INPUT.mousePrev[button_key] == 1;
 }
 
 internal void initGpu() {
@@ -290,8 +253,10 @@ internal void destroyWindow() {
 }
 
 internal void handleEvents() {
-  MOUSE_LEFT_BUTTON_STATE = MOUSE_IDLE;
-  MOUSE_RIGHT_BUTTON_STATE = MOUSE_IDLE;
+  memcpy(INPUT.keyPrev, INPUT.keyDown, sizeof(INPUT.keyDown));
+  memcpy(INPUT.mousePrev, INPUT.mouseDown, sizeof(INPUT.mouseDown));
+  INPUT.mouseDelta = {};
+  INPUT.scrollDelta = 0;
   glfwSwapBuffers(WINDOW);
   glfwPollEvents();
 }
@@ -670,9 +635,18 @@ internal Font loadFont(const char *path, f32 pixelHeight) {
   fclose(f);
 
   u8 *bitmap = (u8 *)arenaAlloc(&localArena, atlasW * atlasH);
-  int result = stbtt_BakeFontBitmap(ttf, 0, pixelHeight, bitmap, atlasW, atlasH,
+  i32 result = stbtt_BakeFontBitmap(ttf, 0, pixelHeight, bitmap, atlasW, atlasH,
                                     32, 96, font.glyphs);
   Assert(result > 0); // negative means the atlas was too small
+
+  stbtt_fontinfo info;
+  stbtt_InitFont(&info, ttf, stbtt_GetFontOffsetForIndex(ttf, 0));
+  int asc, desc, gap;
+  stbtt_GetFontVMetrics(&info, &asc, &desc, &gap);
+  f32 scale = stbtt_ScaleForPixelHeight(&info, pixelHeight);
+
+  font.ascent = asc * scale;
+  font.descent = desc * scale;
 
   glGenTextures(1, &font.texture);
   glBindTexture(GL_TEXTURE_2D, font.texture);

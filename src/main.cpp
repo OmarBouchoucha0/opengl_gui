@@ -133,8 +133,12 @@ int main(void) {
   f32 dt = 0.0f;
   char infoBuffer[Kilobytes(10)];
   char infoBuffer2[Kilobytes(10)];
-  Font font =
+  Font font_16 =
+      loadFont("/home/omar/Work/opengl/assets/JetBrainsMono-Regular.ttf", 16);
+  Font font_32 =
       loadFont("/home/omar/Work/opengl/assets/JetBrainsMono-Regular.ttf", 32);
+  Font font_64 =
+      loadFont("/home/omar/Work/opengl/assets/JetBrainsMono-Regular.ttf", 64);
 
   Color buttonColor = blue;
   Color textColor = backgroundColor;
@@ -142,22 +146,19 @@ int main(void) {
   snprintf(infoBuffer, sizeof(infoBuffer), "IDLE");
   while (!windowShouldClose()) {
 
-    clearBackground(backgroundColor);
+    clearBackground(BG_DEEP);
     rot += 1.0f;
 
     snprintf(infoBuffer2, sizeof(infoBuffer2), "i : %d", i);
-    drawText(center, infoBuffer2, &font, red);
-    switch (guiButton(rect, infoBuffer, &font, buttonColor, textColor)) {
+    drawText(center, infoBuffer2, &font_16, TEXT_PRIMARY);
+    switch (guiButton(100.0f, 100.0f, infoBuffer, &font_32)) {
     case BUTTON_IDLE: {
       snprintf(infoBuffer, sizeof(infoBuffer), "IDLE");
     } break;
     case BUTTON_HOVERED: {
       snprintf(infoBuffer, sizeof(infoBuffer), "HOVERED");
     } break;
-    case BUTTON_DOWN: {
-      snprintf(infoBuffer, sizeof(infoBuffer), "DOWN");
-    } break;
-    case BUTTON_RELEASED: {
+    case BUTTON_PRESSED: {
       i++;
     } break;
     }
@@ -169,7 +170,6 @@ int main(void) {
     //          MOUSE_POSITION.x, MOUSE_POSITION.y);
     // traceLog(DEBUG, infoBuffer);
     handleEvents();
-    MOUSE_LEFT_BUTTON_STATE = MOUSE_IDLE;
   }
 
   destroyWindow();
