@@ -151,24 +151,24 @@ int main(void) {
 
     snprintf(infoBuffer2, sizeof(infoBuffer2), "i : %d", i);
     drawText(center, infoBuffer2, &font_16, TEXT_PRIMARY);
-    switch (guiButton(100.0f, 100.0f, infoBuffer, &font_32)) {
-    case BUTTON_IDLE: {
-      snprintf(infoBuffer, sizeof(infoBuffer), "IDLE");
-    } break;
-    case BUTTON_HOVERED: {
-      snprintf(infoBuffer, sizeof(infoBuffer), "HOVERED");
-    } break;
-    case BUTTON_PRESSED: {
-      i++;
-    } break;
-    }
-    lockFps(fps, frequency, &startCounter, &dt);
+    // switch (guiButton(100.0f, 100.0f, infoBuffer, &font_32)) {
+    // case BUTTON_IDLE: {
+    //   snprintf(infoBuffer, sizeof(infoBuffer), "IDLE");
+    // } break;
+    // case BUTTON_HOVERED: {
+    //   snprintf(infoBuffer, sizeof(infoBuffer), "HOVERED");
+    // } break;
+    // case BUTTON_PRESSED: {
+    //   i++;
+    // } break;
+    // }
     // snprintf(infoBuffer, sizeof(infoBuffer), "DELTA TIME = %.5fs", dt);
     // traceLog(DEBUG, infoBuffer);
 
     // snprintf(infoBuffer, sizeof(infoBuffer), "MOUSE POS = {%.5f|%.5f}",
     //          MOUSE_POSITION.x, MOUSE_POSITION.y);
     // traceLog(DEBUG, infoBuffer);
+    lockFps(fps, frequency, &startCounter, &dt);
     handleEvents();
   }
 

@@ -11,7 +11,14 @@ enum ButtonState {
   BUTTON_PRESSED,
   BUTTON_DOWN,
   BUTTON_RELEASED,
+  BUTTON_FOCUSED,
 };
+
+enum TextBoxState {
+  TEXTBOX_IDLE,
+  TEXTBOX_FOCUSED,
+};
+
 global_variable f32 BUTTON_WIDTH = 100;
 global_variable f32 BUTTON_HEIGHT = 50;
 
@@ -38,5 +45,12 @@ internal ButtonState guiButtonEx(Rectangle button, const char *text, Font *font,
                                  i32 fontSize, f32 rotation, f32 roundness,
                                  f32 borderThickness, Color buttonColor,
                                  Color textColor, Color borderColor);
+internal ButtonState guiTextBox(f32 posx, f32 posy, const char *text,
+                                Font *font);
+internal ButtonState guiTextBoxEx(Rectangle button, const char *text,
+                                  Font *font, i32 fontSize, f32 rotation,
+                                  f32 roundness, f32 borderThickness,
+                                  Color buttonColor, Color textColor,
+                                  Color borderColor);
 
 #endif // GUI_H
